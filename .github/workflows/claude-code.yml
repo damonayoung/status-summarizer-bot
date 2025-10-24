@@ -1,0 +1,24 @@
+name: Claude Code
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  pull_request_target:
+    types: [opened, edited, synchronize]
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Claude Code Action
+        uses: anthropics/claude-code-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+
+          claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
