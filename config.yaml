@@ -1,0 +1,137 @@
+# Status Summarizer Bot Configuration
+
+# Data Sources - enable/disable as needed
+data_sources:
+  meeting_notes:
+    enabled: true
+    path: "sample_data/meeting_notes.txt"
+
+  jira:
+    enabled: true
+    path: "sample_data/jira_export.json"
+    # For live integration (future):
+    # api_url: "https://your-domain.atlassian.net"
+    # project_keys: ["ENG", "PROD", "SEC", "INFRA"]
+
+  slack:
+    enabled: true
+    path: "sample_data/slack_threads.json"
+    # For live integration (future):
+    # bot_token: "${SLACK_BOT_TOKEN}"
+    # channels: ["#engineering-updates", "#product-roadmap", "#tpm-status"]
+
+# AI Model Configuration
+ai:
+  model: "gpt-4o"  # or gpt-4, gpt-4o-mini, gpt-3.5-turbo
+  temperature: 0.3
+  max_tokens: 2000
+
+# Report Configuration
+report:
+  title: "Weekly Program Status"
+  sections:
+    - highlights
+    - risks_and_mitigations
+    - action_items
+    - stakeholder_pulse
+    - metrics
+    - next_week_priorities
+
+  # Customize which metrics to include
+  metrics:
+    - sprint_velocity
+    - bug_backlog
+    - code_coverage
+    - deploy_frequency
+    - mttr
+    - customer_nps
+
+  # Stakeholder groups to analyze
+  stakeholders:
+    - Engineering
+    - Product
+    - Operations
+    - Sales
+    - Customer Success
+    - Executive Leadership
+
+# Output Configuration
+output:
+  formats:
+    markdown:
+      enabled: true
+      path: "output/"
+      filename_pattern: "weekly_summary_{date}.md"
+
+    html:
+      enabled: true
+      path: "output/"
+      filename_pattern: "weekly_summary_{date}.html"
+      template: "templates/executive_report.html"
+
+    json:
+      enabled: false
+      path: "output/"
+      filename_pattern: "weekly_summary_{date}.json"
+
+# Distribution Configuration
+distribution:
+  slack:
+    enabled: false
+    channel: "#weekly-status"
+    # webhook_url: "${SLACK_WEBHOOK_URL}"
+    mention_users: []  # e.g., ["@eng-lead", "@product-manager"]
+
+  email:
+    enabled: false
+    # smtp_server: "smtp.gmail.com"
+    # smtp_port: 587
+    # from_address: "tpm-bot@company.com"
+    recipients:
+      - "engineering@company.com"
+      - "leadership@company.com"
+
+  notion:
+    enabled: false
+    # database_id: "${NOTION_DATABASE_ID}"
+    # api_token: "${NOTION_API_TOKEN}"
+
+# Real-time / Dynamic Features
+realtime:
+  enabled: false
+  refresh_interval_minutes: 60
+  web_dashboard:
+    enabled: false
+    port: 8080
+    host: "localhost"
+
+# Advanced Features
+advanced:
+  # Trend analysis across multiple weeks
+  historical_analysis:
+    enabled: false
+    lookback_weeks: 4
+
+  # Predictive insights
+  forecasting:
+    enabled: false
+    confidence_threshold: 0.7
+
+  # Smart tagging and categorization
+  auto_categorize:
+    enabled: true
+    categories:
+      - "bug"
+      - "feature"
+      - "infrastructure"
+      - "security"
+      - "performance"
+
+  # Risk scoring
+  risk_assessment:
+    enabled: true
+    factors:
+      - deadline_proximity
+      - stakeholder_impact
+      - technical_complexity
+      - dependency_count

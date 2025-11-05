@@ -1,0 +1,107 @@
+# Weekly TPM Status Meeting - Week of Oct 21-25, 2025
+
+## Monday Stand-up (Oct 21)
+- Engineering team completed API v2.0 migration, deployed to staging
+- Database indexing improvements showing 40% query performance gains
+- Sarah (Backend Lead) flagged potential memory leak in user service - investigating
+- Frontend team blocked on design assets for dashboard redesign - waiting on UX team
+- DevOps rolling out new monitoring infrastructure across all services
+
+## Product Planning Session (Oct 22)
+- Reviewed Q4 roadmap with Product, PM wants to prioritize:
+  1. SSO integration (enterprise customers demanding this)
+  2. Advanced analytics dashboard
+  3. Mobile app notifications refactor
+- Scope discussion: Agreed to descope real-time collaboration features to Q1 2026
+- Product wants to move up launch date for v0.2 to Nov 15 (was Nov 30)
+  - Engineering pushback: needs at least 3 weeks for proper testing
+  - Compromise: Soft launch Nov 20 with feature flags, full rollout Dec 1
+- New feature request from Sales: bulk import capability for enterprise clients
+  - Added to backlog, not committed for this quarter
+
+## Engineering Deep Dive (Oct 23)
+- SSO Integration Status:
+  - SAML implementation 80% complete
+  - OAuth2 providers (Google, Microsoft) fully tested
+  - Risk: Okta integration delayed due to API changes on their end
+  - Mitigation: Implemented feature flag system to release other SSO providers first
+  - Timeline: Google/Microsoft SSO ready for Nov 1, Okta pushed to Nov 15
+- Performance Testing Results:
+  - Load testing shows system handles 10K concurrent users (target was 8K)
+  - Database replication lag under load needs attention
+  - Recommendation: Add read replicas before Black Friday traffic spike
+- Technical Debt:
+  - Legacy API endpoints still in use by 3 major clients
+  - Deprecation plan needed - coordinate with Customer Success
+  - Estimated 2 sprints to fully migrate clients
+
+## Risk Review (Oct 24)
+1. Infrastructure Costs:
+   - AWS bill up 25% month-over-month due to increased logging
+   - Action: DevOps to implement log rotation and retention policies
+   - Owner: Mike (DevOps Lead), Due: Oct 31
+
+2. Dependency Vulnerabilities:
+   - Security scan flagged 3 critical CVEs in third-party libraries
+   - 2 already patched, 1 requires code refactor
+   - Action: Security sprint next week to address remaining issues
+   - Owner: Security team + Backend, Due: Nov 3
+
+3. Talent/Capacity:
+   - Two senior engineers interviewing at other companies
+   - Backfill recruiting in progress but taking longer than expected
+   - Impact: May need to deprioritize non-critical features if we lose headcount
+   - Mitigation: HR fast-tracking candidates, retention conversations ongoing
+
+4. Third-party API Rate Limits:
+   - Approaching rate limits on payment gateway during peak hours
+   - Risk: Could impact checkout flow during holiday season
+   - Mitigation: Negotiating higher tier with vendor, implementing request queuing
+   - Owner: Backend team, Due: Nov 1
+
+## Stakeholder Sync (Oct 25)
+- Customer Success Team Feedback:
+  - 5 enterprise clients requesting white-label options
+  - Support tickets down 15% after recent UX improvements
+  - Feature request: Better admin controls for user management
+
+- Operations Team:
+  - Database backup process now fully automated
+  - Disaster recovery drill scheduled for Nov 8
+  - Monitoring dashboard showing 99.97% uptime this month
+
+- Sales Team:
+  - 3 major deals pending, waiting on SSO feature
+  - Competitor analysis shows we're behind on mobile features
+  - Request for technical sales support on upcoming enterprise pitch
+
+- Executive Leadership:
+  - CEO wants monthly metrics dashboard showing engineering velocity
+  - CFO concerned about infrastructure cost trends
+  - COO requesting process improvements for faster feature delivery
+
+## Action Items & Owners
+- [ ] Complete Okta SSO integration (Sarah, Nov 15)
+- [ ] Deploy read replicas for database (Mike, Oct 30)
+- [ ] Security vulnerability remediation (Security + Backend, Nov 3)
+- [ ] Legacy API migration plan + client communication (Product + Eng, Nov 5)
+- [ ] Negotiate payment gateway tier upgrade (Partnerships, Nov 1)
+- [ ] Prepare engineering metrics dashboard for exec team (TPM, Nov 10)
+- [ ] Schedule technical sales enablement session (Sales Eng, Nov 2)
+- [ ] Implement AWS cost optimization - log retention (DevOps, Oct 31)
+- [ ] White-label feasibility assessment (Eng + Product, Nov 8)
+
+## Metrics & KPIs
+- Sprint Velocity: 42 story points (up from 38 last sprint)
+- Bug Backlog: 23 open bugs (down from 31)
+- Code Coverage: 78% (target: 80%)
+- Deploy Frequency: 12 deploys this week
+- MTTR (Mean Time to Recovery): 18 minutes (excellent)
+- Customer NPS: 67 (industry benchmark: 50-70)
+
+## Next Week Priorities
+1. SSO launch preparation (Google/Microsoft providers)
+2. Database scaling for holiday traffic
+3. Security sprint - address remaining vulnerabilities
+4. Begin legacy API deprecation planning
+5. Engineering metrics automation

@@ -1,0 +1,196 @@
+{
+  "channels": [
+    {
+      "channel_name": "#engineering-updates",
+      "channel_id": "C01ABC123",
+      "threads": [
+        {
+          "thread_ts": "2025-10-21T09:00:00Z",
+          "author": "Sarah Chen",
+          "text": "🎉 API v2.0 migration complete! Deployed to staging. All 127 tests passing. Performance improvements are significant - 40% faster query times.",
+          "reactions": [
+            {"emoji": "rocket", "count": 12},
+            {"emoji": "tada", "count": 8}
+          ],
+          "replies": [
+            {
+              "ts": "2025-10-21T09:15:00Z",
+              "author": "Tech Lead",
+              "text": "Amazing work team! When can we schedule the production rollout?"
+            },
+            {
+              "ts": "2025-10-21T09:30:00Z",
+              "author": "Sarah Chen",
+              "text": "Proposing Monday Oct 28 during low-traffic window. Will coordinate with DevOps."
+            }
+          ]
+        },
+        {
+          "thread_ts": "2025-10-23T14:30:00Z",
+          "author": "Mike Davis",
+          "text": "⚠️ Load testing results: system handles 10K concurrent users (above our 8K target!) BUT we're seeing database replication lag under sustained load. Recommending we add read replicas ASAP before Black Friday traffic.",
+          "reactions": [
+            {"emoji": "eyes", "count": 15},
+            {"emoji": "fire", "count": 3}
+          ],
+          "replies": [
+            {
+              "ts": "2025-10-23T14:45:00Z",
+              "author": "CTO",
+              "text": "How long to deploy read replicas? This is critical for holiday season."
+            },
+            {
+              "ts": "2025-10-23T15:00:00Z",
+              "author": "Mike Davis",
+              "text": "3-4 days if we start tomorrow. I'll scope it out tonight and have a plan by EOD."
+            },
+            {
+              "ts": "2025-10-23T15:30:00Z",
+              "author": "Product Manager",
+              "text": "Prioritize this. We have major customers expecting high availability during Q4."
+            }
+          ]
+        },
+        {
+          "thread_ts": "2025-10-24T10:00:00Z",
+          "author": "Alex Kumar",
+          "text": "Security update: 2 of 3 critical CVEs are now patched and deployed. The third one (authentication flow vulnerability) needs a code refactor. Planning a security sprint next week to address it properly.",
+          "reactions": [
+            {"emoji": "lock", "count": 6},
+            {"emoji": "+1", "count": 10}
+          ],
+          "replies": [
+            {
+              "ts": "2025-10-24T10:15:00Z",
+              "author": "CISO",
+              "text": "Timeline on the third CVE? Is there any workaround in the meantime?"
+            },
+            {
+              "ts": "2025-10-24T10:30:00Z",
+              "author": "Alex Kumar",
+              "text": "Target: Nov 3. Current workaround: rate limiting on affected endpoints. Risk is minimal with current mitigation."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel_name": "#product-roadmap",
+      "channel_id": "C02DEF456",
+      "threads": [
+        {
+          "thread_ts": "2025-10-22T11:00:00Z",
+          "author": "Product Manager",
+          "text": "Q4 roadmap alignment meeting recap:\n1. SSO integration - TOP PRIORITY (3 major deals blocked)\n2. Advanced analytics dashboard\n3. Mobile notifications refactor\n\nDescoping: Real-time collaboration → Q1 2026\n\nLaunch date discussion: Eng wants Nov 30, I'm pushing for Nov 15. Thoughts?",
+          "reactions": [
+            {"emoji": "calendar", "count": 5}
+          ],
+          "replies": [
+            {
+              "ts": "2025-10-22T11:30:00Z",
+              "author": "Sarah Chen",
+              "text": "Nov 15 is too aggressive. We need minimum 3 weeks for proper QA. Nov 20 soft launch with feature flags, then full rollout Dec 1?"
+            },
+            {
+              "ts": "2025-10-22T12:00:00Z",
+              "author": "Product Manager",
+              "text": "That's a reasonable compromise. Let's do phased rollout with flags. @sales-team this work for your timelines?"
+            },
+            {
+              "ts": "2025-10-22T12:15:00Z",
+              "author": "Sales Lead",
+              "text": "Perfect! Nov 20 gives us time to prep enterprise clients. Need SSO especially for the Acme Corp deal."
+            }
+          ]
+        },
+        {
+          "thread_ts": "2025-10-24T16:00:00Z",
+          "author": "Sales Lead",
+          "text": "Urgent: Customers asking about white-label options. Got 5 enterprise inquiries this week alone. Can eng assess feasibility? This could be a major revenue driver.",
+          "reactions": [
+            {"emoji": "moneybag", "count": 8}
+          ],
+          "replies": [
+            {
+              "ts": "2025-10-24T16:30:00Z",
+              "author": "Tech Lead",
+              "text": "Big undertaking. We'd need to assess architecture changes. Can you quantify the revenue opportunity?"
+            },
+            {
+              "ts": "2025-10-24T17:00:00Z",
+              "author": "Sales Lead",
+              "text": "Conservatively $2M ARR in first year if we can deliver by Q2. Premium tier pricing."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel_name": "#tpm-status",
+      "channel_id": "C03GHI789",
+      "threads": [
+        {
+          "thread_ts": "2025-10-24T17:30:00Z",
+          "author": "TPM",
+          "text": "Risk register update:\n🔴 CRITICAL: Payment gateway rate limits - approaching cap during peak hours\n🟡 HIGH: 2 senior engineers interviewing elsewhere - capacity risk\n🟡 HIGH: AWS costs up 25% MoM\n🟢 RESOLVED: API migration blocker cleared",
+          "reactions": [
+            {"emoji": "eyes", "count": 20}
+          ],
+          "replies": [
+            {
+              "ts": "2025-10-24T17:45:00Z",
+              "author": "CFO",
+              "text": "The AWS cost trend is concerning. What's driving it and what's the mitigation plan?"
+            },
+            {
+              "ts": "2025-10-24T18:00:00Z",
+              "author": "Mike Davis",
+              "text": "Over-logging is the culprit. Implementing retention policies by Oct 31. Should bring costs back to baseline."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel_name": "#customer-success",
+      "channel_id": "C04JKL012",
+      "threads": [
+        {
+          "thread_ts": "2025-10-25T10:00:00Z",
+          "author": "CS Lead",
+          "text": "Great news: Support tickets down 15% after last month's UX improvements! 📉 Customers specifically called out the new onboarding flow and improved navigation.",
+          "reactions": [
+            {"emoji": "chart_with_downwards_trend", "count": 12},
+            {"emoji": "tada", "count": 15}
+          ],
+          "replies": []
+        },
+        {
+          "thread_ts": "2025-10-25T14:00:00Z",
+          "author": "CS Manager",
+          "text": "Feature request from enterprise clients: Better admin controls for user management. Seeing this from multiple customers. Can we prioritize?",
+          "reactions": [
+            {"emoji": "+1", "count": 7}
+          ],
+          "replies": [
+            {
+              "ts": "2025-10-25T14:30:00Z",
+              "author": "Product Manager",
+              "text": "Adding to backlog. Let's discuss scope in next planning meeting."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "exportDate": "2025-10-24T18:00:00Z",
+    "dateRange": {
+      "start": "2025-10-21",
+      "end": "2025-10-25"
+    },
+    "totalMessages": 24,
+    "totalThreads": 8,
+    "activeChannels": 4
+  }
+}

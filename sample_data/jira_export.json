@@ -1,0 +1,190 @@
+{
+  "issues": [
+    {
+      "key": "ENG-1234",
+      "summary": "Implement SSO integration with Okta",
+      "status": "In Progress",
+      "priority": "High",
+      "assignee": "Sarah Chen",
+      "reporter": "Product Team",
+      "created": "2025-10-15",
+      "updated": "2025-10-24",
+      "dueDate": "2025-11-15",
+      "labels": ["sso", "security", "enterprise"],
+      "storyPoints": 13,
+      "sprint": "Sprint 42",
+      "description": "Enterprise customers are requesting Okta SSO integration. This is blocking 3 major deals.",
+      "comments": [
+        {
+          "author": "Sarah Chen",
+          "created": "2025-10-24T10:30:00Z",
+          "body": "SAML implementation is 80% complete. Okta API changes causing delays. May need to push deadline by 1 week."
+        },
+        {
+          "author": "Mike Davis",
+          "created": "2025-10-23T14:15:00Z",
+          "body": "Feature flag system is in place. We can release Google/Microsoft SSO first if Okta is delayed."
+        }
+      ],
+      "progress": 80
+    },
+    {
+      "key": "ENG-1235",
+      "summary": "Database replication lag under heavy load",
+      "status": "To Do",
+      "priority": "Critical",
+      "assignee": "Mike Davis",
+      "reporter": "DevOps",
+      "created": "2025-10-23",
+      "updated": "2025-10-24",
+      "dueDate": "2025-10-30",
+      "labels": ["performance", "database", "infrastructure"],
+      "storyPoints": 5,
+      "sprint": "Sprint 42",
+      "description": "Load testing revealed replication lag during peak traffic. Need to deploy read replicas before Black Friday.",
+      "comments": [
+        {
+          "author": "Mike Davis",
+          "created": "2025-10-24T09:00:00Z",
+          "body": "Scoping out read replica deployment. Should be straightforward, targeting Oct 30 completion."
+        }
+      ],
+      "progress": 0
+    },
+    {
+      "key": "SEC-456",
+      "summary": "Remediate critical CVEs in dependencies",
+      "status": "In Progress",
+      "priority": "Critical",
+      "assignee": "Security Team",
+      "reporter": "Security Scanner",
+      "created": "2025-10-20",
+      "updated": "2025-10-24",
+      "dueDate": "2025-11-03",
+      "labels": ["security", "vulnerability", "dependencies"],
+      "storyPoints": 8,
+      "sprint": "Sprint 42",
+      "description": "Security scan identified 3 critical CVEs. 2 patched, 1 requires code refactor.",
+      "comments": [
+        {
+          "author": "Alex Kumar",
+          "created": "2025-10-24T11:45:00Z",
+          "body": "Two CVEs patched and deployed. Third requires refactoring authentication flow. Security sprint scheduled for next week."
+        }
+      ],
+      "progress": 66
+    },
+    {
+      "key": "ENG-1190",
+      "summary": "API v2.0 migration",
+      "status": "Done",
+      "priority": "High",
+      "assignee": "Backend Team",
+      "reporter": "Tech Lead",
+      "created": "2025-09-15",
+      "updated": "2025-10-21",
+      "dueDate": "2025-10-20",
+      "labels": ["api", "migration", "backend"],
+      "storyPoints": 21,
+      "sprint": "Sprint 41",
+      "description": "Migrate all endpoints to v2.0 API specification",
+      "comments": [
+        {
+          "author": "Sarah Chen",
+          "created": "2025-10-21T16:30:00Z",
+          "body": "✅ Deployed to staging. All tests passing. Ready for production rollout."
+        }
+      ],
+      "progress": 100
+    },
+    {
+      "key": "INFRA-789",
+      "summary": "AWS cost optimization - log retention",
+      "status": "In Progress",
+      "priority": "Medium",
+      "assignee": "Mike Davis",
+      "reporter": "Finance",
+      "created": "2025-10-24",
+      "updated": "2025-10-24",
+      "dueDate": "2025-10-31",
+      "labels": ["cost-optimization", "infrastructure", "aws"],
+      "storyPoints": 3,
+      "sprint": "Sprint 42",
+      "description": "AWS bill up 25% due to excessive logging. Implement retention policies.",
+      "comments": [],
+      "progress": 10
+    },
+    {
+      "key": "PROD-567",
+      "summary": "Advanced analytics dashboard",
+      "status": "In Progress",
+      "priority": "High",
+      "assignee": "Frontend Team",
+      "reporter": "Product Manager",
+      "created": "2025-10-10",
+      "updated": "2025-10-24",
+      "dueDate": "2025-11-30",
+      "labels": ["analytics", "frontend", "dashboard"],
+      "storyPoints": 13,
+      "sprint": "Sprint 42",
+      "description": "Build advanced analytics dashboard for enterprise customers",
+      "comments": [
+        {
+          "author": "Jenny Lin",
+          "created": "2025-10-21T13:20:00Z",
+          "body": "Blocked - waiting on design assets from UX team. Can't proceed until we get final mockups."
+        }
+      ],
+      "progress": 25
+    },
+    {
+      "key": "ENG-1245",
+      "summary": "Memory leak investigation - user service",
+      "status": "In Progress",
+      "priority": "High",
+      "assignee": "Sarah Chen",
+      "reporter": "Monitoring System",
+      "created": "2025-10-21",
+      "updated": "2025-10-24",
+      "dueDate": "2025-10-28",
+      "labels": ["bug", "performance", "backend"],
+      "storyPoints": 5,
+      "sprint": "Sprint 42",
+      "description": "Monitoring alerts showing memory growth in user service. Need to identify and fix leak.",
+      "comments": [
+        {
+          "author": "Sarah Chen",
+          "created": "2025-10-24T15:00:00Z",
+          "body": "Profiling in progress. Suspect it's related to WebSocket connection handling. Will have root cause by EOW."
+        }
+      ],
+      "progress": 40
+    },
+    {
+      "key": "OPS-123",
+      "summary": "Disaster recovery drill execution",
+      "status": "To Do",
+      "priority": "Medium",
+      "assignee": "Operations Team",
+      "reporter": "Compliance",
+      "created": "2025-10-18",
+      "updated": "2025-10-24",
+      "dueDate": "2025-11-08",
+      "labels": ["disaster-recovery", "compliance", "ops"],
+      "storyPoints": 8,
+      "sprint": "Sprint 43",
+      "description": "Quarterly disaster recovery drill to test backup and restore procedures",
+      "comments": [],
+      "progress": 0
+    }
+  ],
+  "metadata": {
+    "exportDate": "2025-10-24T18:00:00Z",
+    "sprint": "Sprint 42",
+    "sprintStartDate": "2025-10-14",
+    "sprintEndDate": "2025-10-27",
+    "totalStoryPoints": 76,
+    "completedStoryPoints": 42,
+    "sprintVelocity": 42
+  }
+}
