@@ -1,6 +1,7 @@
 # 🤖 Status Summarizer Bot
 
 > **AI-powered TPM status report generator that obsoletes manual status reporting**
+> Transforms project updates into autonomous, living systems that monitor, report, and adapt.
 
 [![OpenAI](https://img.shields.io/badge/Powered%20by-OpenAI%20GPT--4-412991.svg)](https://openai.com/)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
@@ -13,6 +14,8 @@
 **The challenge**: Why should humans be the reporting layer of a system when AI can already see, summarize, and forecast?
 
 **Our thesis**: AI will obsolete the status report by creating **dynamic, real-time program narratives** — accessible anytime by any stakeholder.
+
+Instead of manually describing progress, this project builds a system that understands and communicates it.
 
 ## ⚡ What It Does
 
