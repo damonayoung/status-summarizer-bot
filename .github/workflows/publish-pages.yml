@@ -42,90 +42,40 @@ jobs:
       - name: Prepare site for deployment
         run: |
           mkdir -p public
-
-          # Find the most recent HTML file in output directory
           LATEST_HTML=$(ls -t output/*.html 2>/dev/null | head -n1)
 
           if [ -n "$LATEST_HTML" ] && [ -f "$LATEST_HTML" ]; then
             cp "$LATEST_HTML" public/index.html
             echo "✅ Deployed: $LATEST_HTML"
-
-            # Copy all CSS/assets if they exist
             if [ -d "output/assets" ]; then
               cp -r output/assets public/
             fi
           else
-            # Fallback: Create placeholder page
-            echo "⚠️ No HTML files found in output directory, creating placeholder"
-            cat > public/index.html <<'HTML'
-            <!doctype html>
-            <html lang="en">
-            <head>
-              <meta charset="utf-8"/>
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <title>Executive Status Report</title>
-              <style>
-                body {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                  padding: 3rem;
-                  max-width: 900px;
-                  margin: auto;
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  min-height: 100vh;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                }
-                .container {
-                  background: white;
-                  padding: 3rem;
-                  border-radius: 16px;
-                  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                }
-                h1 { color: #2563eb; margin-bottom: 1rem; }
-                .status {
-                  padding: 1rem;
-                  background: #fef3c7;
-                  border-left: 4px solid #f59e0b;
-                  border-radius: 8px;
-                  margin: 1.5rem 0;
-                }
-                code {
-                  background: #f1f5f9;
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-family: monospace;
-                }
-                .steps {
-                  margin: 1.5rem 0;
-                  padding-left: 1.5rem;
-                }
-                .steps li {
-                  margin: 0.5rem 0;
-                  line-height: 1.6;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>🤖 Executive Status Report</h1>
-                <div class="status">
-                  <strong>⚠️ No reports generated yet</strong>
-                </div>
-                <p>The Status Summarizer Bot is configured but no reports have been generated.</p>
-
-                <h2>To generate reports:</h2>
-                <ol class="steps">
-                  <li>Add your <code>OPENAI_API_KEY</code> to GitHub repository secrets</li>
-                  <li>Push to main branch or trigger the workflow manually</li>
-                  <li>The bot will generate a fresh executive report automatically</li>
-                </ol>
-
-                <p><small>Powered by OpenAI GPT-4 | Status Summarizer Bot v2.0</small></p>
-              </div>
-            </body>
-            </html>
-            HTML
+            echo "⚠️ No HTML files found, creating placeholder"
+            python3 << 'PYSCRIPT'
+          with open('public/index.html', 'w') as f:
+              f.write('<!doctype html><html lang="en"><head><meta charset="utf-8"/>')
+              f.write('<meta name="viewport" content="width=device-width, initial-scale=1">')
+              f.write('<title>Executive Status Report</title><style>')
+              f.write('body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;')
+              f.write('padding:3rem;max-width:900px;margin:auto;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);')
+              f.write('min-height:100vh;display:flex;align-items:center;justify-content:center}')
+              f.write('.container{background:white;padding:3rem;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}')
+              f.write('h1{color:#2563eb;margin-bottom:1rem}')
+              f.write('.status{padding:1rem;background:#fef3c7;border-left:4px solid #f59e0b;border-radius:8px;margin:1.5rem 0}')
+              f.write('code{background:#f1f5f9;padding:0.25rem 0.5rem;border-radius:4px;font-family:monospace}')
+              f.write('.steps{margin:1.5rem 0;padding-left:1.5rem}.steps li{margin:0.5rem 0;line-height:1.6}')
+              f.write('</style></head><body><div class="container">')
+              f.write('<h1>🤖 Executive Status Report</h1>')
+              f.write('<div class="status"><strong>⚠️ No reports generated yet</strong></div>')
+              f.write('<p>The Status Summarizer Bot is configured but no reports have been generated.</p>')
+              f.write('<h2>To generate reports:</h2><ol class="steps">')
+              f.write('<li>Add your <code>OPENAI_API_KEY</code> to GitHub repository secrets</li>')
+              f.write('<li>Push to main branch or trigger the workflow manually</li>')
+              f.write('<li>The bot will generate a fresh executive report automatically</li>')
+              f.write('</ol><p><small>Powered by OpenAI GPT-4 | Status Summarizer Bot v2.0</small></p>')
+              f.write('</div></body></html>')
+          PYSCRIPT
           fi
 
       - name: Upload artifact
