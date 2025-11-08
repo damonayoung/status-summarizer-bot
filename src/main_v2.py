@@ -248,67 +248,200 @@ def write_markdown_output(summary: str, config: Dict[str, Any]) -> str:
 
 def markdown_to_html_sections(markdown_text: str) -> str:
     """
-    Convert Markdown summary to HTML sections.
-    Simple conversion - for production, use a proper markdown library.
+    Convert Markdown summary to HTML sections matching the new template structure.
+    Converts tables, badges, and sections with proper CSS classes.
     """
+    import re
+
     html_parts = []
     lines = markdown_text.split("\n")
 
+    in_table = False
     in_list = False
-    current_section = []
+    in_card = False
+    current_card_content = []
+    current_section = None
+    i = 0
 
-    for line in lines:
-        if line.startswith("**") and line.endswith("**"):
-            # Bold section headers
-            if current_section:
-                html_parts.append("\n".join(current_section))
-                current_section = []
+    def close_card():
+        nonlocal in_card, current_card_content, html_parts
+        if in_card and current_card_content:
+            html_parts.append("</div>")  # Close card
+            in_card = False
+            current_card_content = []
 
-            title = line.strip("*")
-            current_section.append(f'<div class="section"><h2 class="section-title">{title}</h2>')
+    def get_badge_class(text):
+        """Determine badge class based on status emoji/text"""
+        if '🟢' in text or '✅' in text or 'Complete' in text or 'Positive' in text:
+            return 'badge ok'
+        elif '🟠' in text or '⚠️' in text or 'At Risk' in text or 'High' in text or 'Concern' in text:
+            return 'badge warn'
+        elif '🔴' in text or '🔥' in text or 'Critical' in text or 'Urgent' in text:
+            return 'badge danger'
+        else:
+            return 'badge'
+
+    def process_table_row(row, is_header=False):
+        """Convert markdown table row to HTML with badges"""
+        cells = [cell.strip() for cell in row.split('|')[1:-1]]  # Remove empty first/last
+
+        if is_header:
+            html_cells = ''.join(f'<th>{cell}</th>' for cell in cells)
+            return f'<tr>{html_cells}</tr>'
+        else:
+            html_cells = []
+            for cell in cells:
+                # Check if cell contains status indicator and wrap in badge
+                if any(emoji in cell for emoji in ['🟢', '🟠', '🔴', '✅', '⚠️', '🔥', '⚙️']):
+                    badge_class = get_badge_class(cell)
+                    html_cells.append(f'<td><span class="{badge_class}">{cell}</span></td>')
+                else:
+                    html_cells.append(f'<td>{cell}</td>')
+            return f'<tr>{"".join(html_cells)}</tr>'
+
+    while i < len(lines):
+        line = lines[i]
+
+        # Detect section headers (### 1. AT-A-GLANCE DASHBOARD)
+        if line.startswith('###'):
+            close_card()
+
+            title = line.replace('###', '').strip()
+            section_lower = title.lower()
+
+            # Determine section structure
+            if 'at-a-glance' in section_lower or 'dashboard' in section_lower:
+                html_parts.append('<div class="card">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+
+            elif 'executive highlight' in section_lower:
+                # Start 2-column grid
+                html_parts.append('<div class="grid-2">')
+                html_parts.append('<div class="card">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+                current_section = 'highlights'
+
+            elif 'key win' in section_lower:
+                # Second column of grid
+                html_parts.append('<div class="card">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+                current_section = 'wins'
+
+            elif 'risk' in section_lower:
+                html_parts.append('</div>')  # Close previous grid if any
+                html_parts.append('<section class="section">')
+                html_parts.append('<h2>Tier 2 — Why it matters?</h2>')
+                html_parts.append('<div class="card">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+
+            elif 'stakeholder' in section_lower:
+                html_parts.append('</div>')  # Close previous section if any
+                html_parts.append('<section class="section">')
+                html_parts.append('<h2>Tier 3 — What\'s next?</h2>')
+                html_parts.append('<div class="twocol">')
+                html_parts.append('<div class="card alt">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+
+            elif 'next week' in section_lower or 'executive action' in section_lower:
+                html_parts.append('<div class="card">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+
+            elif 'metric' in section_lower:
+                html_parts.append('</div>')  # Close twocol
+                html_parts.append('</section>')  # Close section
+                html_parts.append('<section class="section">')
+                html_parts.append('<div class="card">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+
+            else:
+                html_parts.append('<div class="card">')
+                html_parts.append(f'<h3>{title}</h3>')
+                in_card = True
+
+        # Detect markdown tables
+        elif '|' in line and line.strip().startswith('|'):
+            if not in_table:
+                html_parts.append('<table class="table">')
+                in_table = True
+
+                # Check if next line is separator
+                if i + 1 < len(lines) and '---' in lines[i + 1]:
+                    html_parts.append('<thead>')
+                    html_parts.append(process_table_row(line, is_header=True))
+                    html_parts.append('</thead>')
+                    html_parts.append('<tbody>')
+                    i += 1  # Skip separator line
+                else:
+                    html_parts.append('<tbody>')
+                    html_parts.append(process_table_row(line))
+            else:
+                html_parts.append(process_table_row(line))
+
+        # Close table when no more table rows
+        elif in_table and '|' not in line:
+            html_parts.append('</tbody>')
+            html_parts.append('</table>')
+            in_table = False
+
+        # Detect lists
+        elif line.strip().startswith('- '):
+            if not in_list:
+                html_parts.append('<ul class="clean">')
+                in_list = True
+            item = line.strip()[2:]
+            html_parts.append(f'<li>{item}</li>')
+
+        elif re.match(r'^\d+\.', line.strip()):
+            if not in_list:
+                html_parts.append('<ol class="clean">')
+                in_list = True
+            item = re.sub(r'^\d+\.\s*', '', line.strip())
+            html_parts.append(f'<li>{item}</li>')
+
+        # Close list when encountering non-list content
+        elif in_list and line.strip() and not line.strip().startswith(('-', '1.', '2.', '3.')):
+            html_parts.append('</ul>' if '<ul' in ''.join(html_parts[-10:]) else '</ol>')
             in_list = False
 
-        elif line.startswith("###"):
-            # H3 headers
-            title = line.replace("###", "").strip()
-            current_section.append(f"<h3>{title}</h3>")
-
-        elif line.startswith("- "):
-            # List items
-            if not in_list:
-                current_section.append('<ul>')
-                in_list = True
-            item = line[2:].strip()
-            current_section.append(f"<li>{item}</li>")
-
-        elif line.strip().startswith(("1.", "2.", "3.", "4.", "5.")):
-            # Numbered lists
-            if not in_list:
-                current_section.append('<ol class="priorities-list">')
-                in_list = True
-            item = line.split(".", 1)[1].strip()
-            current_section.append(f"<li>{item}</li>")
-
-        elif line.strip() == "":
-            # Empty line - close lists
+        # Detect subsections (Top 3 Priorities, Decisions Needed)
+        elif line.strip().startswith('**') and line.strip().endswith('**'):
             if in_list:
-                list_tag = "ul" if "<ul>" in "\n".join(current_section) else "ol"
-                current_section.append(f"</{list_tag}>")
+                html_parts.append('</ul>' if '<ul' in ''.join(html_parts[-10:]) else '</ol>')
                 in_list = False
+            subtitle = line.strip('*').strip()
+            html_parts.append(f'<div class="sub">{subtitle}</div>')
 
-        else:
-            # Regular paragraph
-            if line.strip():
-                current_section.append(f"<p>{line}</p>")
+        # Handle blockquotes (summary line after dashboard)
+        elif line.strip().startswith('>'):
+            text = line.strip()[1:].strip()
+            html_parts.append(f'<p><em>{text}</em></p>')
 
-    # Close any remaining section
+        # Regular paragraphs
+        elif line.strip() and not line.startswith('#'):
+            html_parts.append(f'<p>{line.strip()}</p>')
+
+        i += 1
+
+    # Close any open elements
     if in_list:
-        current_section.append('</ul>')
-    if current_section:
-        current_section.append('</div>')
-        html_parts.append("\n".join(current_section))
+        html_parts.append('</ul>')
+    if in_table:
+        html_parts.append('</tbody></table>')
+    if in_card:
+        html_parts.append('</div>')  # Close card
 
-    return "\n".join(html_parts)
+    # Close any open grids/sections
+    html_parts.append('</div>')  # Close last grid/twocol if any
+    html_parts.append('</section>')  # Close section
+
+    return '\n'.join(html_parts)
 
 
 def write_html_output(summary: str, config: Dict[str, Any]) -> str:
@@ -327,21 +460,34 @@ def write_html_output(summary: str, config: Dict[str, Any]) -> str:
     filepath = os.path.join(output_dir, filename)
 
     # Load template
+    from jinja2 import Template
+
     template_path = html_config.get("template", "templates/executive_report.html")
     with open(template_path, "r", encoding="utf-8") as f:
-        template = f.read()
+        template_str = f.read()
 
     # Convert markdown summary to HTML
     html_content = markdown_to_html_sections(summary)
 
-    # Replace placeholders
+    # Prepare template variables
     report_title = config.get("report", {}).get("title", "Weekly Program Status")
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    html_output = template.replace("{{title}}", report_title)
-    html_output = html_output.replace("{{date}}", today)
-    html_output = html_output.replace("{{content}}", html_content)
-    html_output = html_output.replace("{{timestamp}}", timestamp)
+    # Create Jinja2 template and render
+    template = Template(template_str)
+    html_output = template.render(
+        title=report_title,
+        date=today,
+        content=html_content,
+        timestamp=timestamp,
+        # Default KPI values (can be extracted from summary in future)
+        kpi_delivery_value='Stable',
+        kpi_delivery_trend='Trajectory ↗',
+        kpi_velocity_value='Healthy',
+        kpi_velocity_trend='Sustained ↑',
+        kpi_cost_value='Caution',
+        kpi_cost_trend='Infra ↑'
+    )
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html_output)
