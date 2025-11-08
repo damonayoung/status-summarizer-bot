@@ -1,3 +1,40 @@
+# Byte-compiled / cache
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Output directories
 output/
+dist/
+build/
+reports/
+logs/
+
+# macOS system files
+.DS_Store
+
+# VS Code project settings
+.vscode/
+.history/
+
+# Jupyter / temporary notebooks
+.ipynb_checkpoints/
+
+# Testing & coverage artifacts
+.coverage
+pytest_cache/
+htmlcov/
+
+# Dependency lock files (optional)
+poetry.lock
+Pipfile.lock
