@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from ingestors.jira_ingestor import JiraIngestor
 from ingestors.slack_ingestor import SlackIngestor
 from ingestors.notes_ingestor import NotesIngestor
+from ingestors.csv_ingestor import CSVIngestor
 
 # Load environment variables
 load_dotenv()
@@ -38,54 +39,94 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def ingest_all_sources(config: Dict[str, Any]) -> str:
+def ingest_all_sources(config: Dict[str, Any], scenario: str = None) -> str:
     """
     Ingest data from all enabled sources and combine into one text.
 
     Args:
         config: Application configuration
+        scenario: Optional scenario name to use scenario-specific data sources
 
     Returns:
         Combined text from all data sources
     """
-    data_sources = config.get("data_sources", {})
+    # Get data sources from scenario config or default config
+    if scenario and scenario in config.get("scenarios", {}):
+        data_sources = config["scenarios"][scenario].get("data_sources", {})
+        print(f"\n📥 Ingesting data for scenario: {scenario}...")
+    else:
+        data_sources = config.get("data_sources", {})
+        print("\n📥 Ingesting data from sources...")
+
     combined_text = []
 
-    print("\n📥 Ingesting data from sources...")
+    # Define display names for each source
+    display_names = {
+        "meeting_notes": "Meeting Notes",
+        "jira": "Jira",
+        "slack": "Slack",
+        "wrike": "Wrike",
+        "gmail": "Gmail",
+        "hubspot": "HubSpot",
+        "confluence": "Confluence",
+        "calendar": "Calendar",
+        "risk_register": "Risk Register",
+        "stakeholders": "Stakeholders",
+    }
 
-    # Meeting Notes
-    if data_sources.get("meeting_notes", {}).get("enabled", False):
-        try:
-            notes_ingestor = NotesIngestor(data_sources["meeting_notes"])
-            notes_data = notes_ingestor.ingest()
-            formatted = notes_ingestor.format_for_prompt(notes_data)
-            combined_text.append(formatted)
-            print(f"  ✓ {notes_ingestor.get_source_name()}")
-        except Exception as e:
-            print(f"  ✗ Meeting Notes failed: {e}")
+    # Process each enabled source
+    for source_key in data_sources.keys():
+        source_config = data_sources.get(source_key, {})
+        if not source_config.get("enabled", False):
+            continue
 
-    # Jira
-    if data_sources.get("jira", {}).get("enabled", False):
-        try:
-            jira_ingestor = JiraIngestor(data_sources["jira"])
-            jira_data = jira_ingestor.ingest()
-            formatted = jira_ingestor.format_for_prompt(jira_data)
-            combined_text.append(formatted)
-            print(f"  ✓ {jira_ingestor.get_source_name()}: {len(jira_data.get('issues', []))} issues")
-        except Exception as e:
-            print(f"  ✗ Jira failed: {e}")
+        display_name = display_names.get(source_key, source_key.replace("_", " ").title())
 
-    # Slack
-    if data_sources.get("slack", {}).get("enabled", False):
         try:
-            slack_ingestor = SlackIngestor(data_sources["slack"])
-            slack_data = slack_ingestor.ingest()
-            formatted = slack_ingestor.format_for_prompt(slack_data)
+            # Determine file type from path extension
+            file_path = source_config.get("path", "")
+            is_csv = file_path.endswith(".csv")
+            is_json = file_path.endswith(".json")
+            is_text = file_path.endswith(".txt")
+
+            # Select appropriate ingestor based on file type and source
+            if is_csv:
+                ingestor = CSVIngestor(source_config, source_name=display_name)
+                source_type = "csv"
+            elif source_key == "jira" and is_json:
+                ingestor = JiraIngestor(source_config)
+                source_type = "jira"
+            elif source_key == "slack" and is_json:
+                ingestor = SlackIngestor(source_config)
+                source_type = "slack"
+            elif source_key == "meeting_notes" or is_text:
+                ingestor = NotesIngestor(source_config)
+                source_type = "text"
+            else:
+                # Default to CSV for unknown types
+                ingestor = CSVIngestor(source_config, source_name=display_name)
+                source_type = "csv"
+
+            # Ingest and format data
+            data = ingestor.ingest()
+            formatted = ingestor.format_for_prompt(data)
             combined_text.append(formatted)
-            total_threads = sum(len(ch.get("threads", [])) for ch in slack_data.get("channels", []))
-            print(f"  ✓ {slack_ingestor.get_source_name()}: {total_threads} threads")
+
+            # Display success message with record count
+            if source_type == "csv":
+                record_count = data.get("row_count", 0)
+                print(f"  ✓ {display_name}: {record_count} records")
+            elif source_type == "jira":
+                issue_count = len(data.get("issues", []))
+                print(f"  ✓ {display_name}: {issue_count} issues")
+            elif source_type == "slack":
+                thread_count = sum(len(ch.get("threads", [])) for ch in data.get("channels", []))
+                print(f"  ✓ {display_name}: {thread_count} threads")
+            else:
+                print(f"  ✓ {display_name}")
+
         except Exception as e:
-            print(f"  ✗ Slack failed: {e}")
+            print(f"  ✗ {display_name} failed: {e}")
 
     if not combined_text:
         raise ValueError("No data sources were successfully ingested!")
@@ -93,17 +134,23 @@ def ingest_all_sources(config: Dict[str, Any]) -> str:
     return "\n\n" + "="*80 + "\n\n".join(combined_text)
 
 
-def build_prompt(combined_data: str, config: Dict[str, Any]) -> str:
+def build_prompt(combined_data: str, config: Dict[str, Any], scenario: str = None) -> str:
     """
-    Build the AI prompt based on configuration.
+    Build the AI prompt based on configuration and scenario.
 
     Args:
         combined_data: Combined text from all sources
         config: Application configuration
+        scenario: Optional scenario name (e.g., 'sentient_cx_risk_radar')
 
     Returns:
         Formatted prompt for the AI
     """
+    # Check if this is a specific scenario
+    if scenario and scenario in config.get("scenarios", {}):
+        return _build_scenario_prompt(combined_data, config, scenario)
+
+    # Default behavior: use standard report configuration
     report_config = config.get("report", {})
     sections = report_config.get("sections", [])
     stakeholders = report_config.get("stakeholders", [])
@@ -183,18 +230,203 @@ This report should enable executives to make decisions in 2 minutes of reading.
     return prompt
 
 
-def summarize_with_ai(combined_data: str, config: Dict[str, Any]) -> str:
+def _build_scenario_prompt(combined_data: str, config: Dict[str, Any], scenario: str) -> str:
+    """
+    Build a scenario-specific prompt.
+
+    Args:
+        combined_data: Combined text from all sources
+        config: Application configuration
+        scenario: Scenario name
+
+    Returns:
+        Formatted prompt for the AI
+    """
+    scenario_config = config["scenarios"][scenario]
+
+    if scenario == "sentient_cx_risk_radar":
+        return _build_cx_risk_radar_prompt(combined_data, scenario_config)
+
+    # Default fallback for other scenarios
+    return f"""Generate a report based on the following data:\n\n{combined_data}"""
+
+
+def _build_cx_risk_radar_prompt(combined_data: str, scenario_config: Dict[str, Any]) -> str:
+    """
+    Build the CX Risk Radar specific prompt.
+
+    Args:
+        combined_data: Combined text from all sources
+        scenario_config: Scenario-specific configuration
+
+    Returns:
+        Formatted prompt for CX Risk Radar
+    """
+    title = scenario_config.get("title", "CX Risk Radar")
+    sections = scenario_config.get("sections", [])
+    prompt_focus = scenario_config.get("prompt_focus", [])
+
+    prompt = f"""You are an elite Customer Experience Risk Analyst creating a RISK-FOCUSED executive briefing for {title}.
+
+DATA SOURCES (Jira, Wrike, Slack, Gmail, HubSpot, Confluence, Calendar, Risk Register, Stakeholders):
+{combined_data}
+
+CRITICAL INSTRUCTIONS - CX RISK RADAR FORMAT:
+
+Your mission: Identify customer experience threats, assess severity, and recommend immediate actions.
+
+**DATA SOURCE MAPPING** (use these exact sections from the data above):
+- **RISK REGISTER**: Pre-identified risks with RiskID, Title, Severity, Strategy, Plan, Owner, TargetDate
+- **STAKEHOLDERS**: Key people with Name, Role, Type, Org, Influence, EngagementPlan
+- **JIRA**: Issues with IssueKey, Summary, Status, Priority, Assignee, DueDate, Labels
+- **WRIKE**: Tasks with TaskID, Title, Status, Priority, Owner, DueDate
+- **SLACK**: Team updates and discussions - extract sentiment and themes
+- **GMAIL**: Email highlights - executive communications and escalations
+- **HUBSPOT**: Deal pipeline data - account health and revenue risks
+- **CONFLUENCE**: Documentation and knowledge base - context and policies
+- **CALENDAR**: Upcoming meetings and deadlines
+
+## STRUCTURE (EXACT FORMAT REQUIRED):
+
+### 1. EXECUTIVE OVERVIEW
+**CX Risk Posture**: [One sentence: Current state - Green/Yellow/Red and why]
+
+**Instructions**: Synthesize from Risk Register (count High risks), Jira/Wrike (blocked items), HubSpot (at-risk deals)
+
+**Critical Context**: 2-3 bullets summarizing:
+- Most urgent CX threat and business impact (from Risk Register High severity items)
+- Key customer sentiment trends (from Slack/Gmail/HubSpot - aggregate positive vs. negative signals)
+- Any imminent deadlines or escalations (from Jira/Wrike/Calendar/Risk Register TargetDate)
+
+Format: **Bold risk** → customer impact (quantify when possible)
+
+### 2. TOP RISKS (Priority Table)
+Markdown table: Risk | Severity | Customer Impact | Owner | Due Date | Status
+
+**Severity Levels** (mandatory):
+- 🔴 **High**: Direct customer impact, revenue at risk, escalation to C-suite
+- 🟠 **Medium**: Degraded CX, at-risk deals, requires immediate attention
+- 🟡 **Low**: Monitoring required, proactive mitigation
+
+**Instructions**:
+- **PRIMARY SOURCE**: Use RISK REGISTER as authoritative source (RiskID, Title, Severity, Owner, TargetDate)
+- **SUPPLEMENT WITH**: Jira issues (High/Blocked priority), Wrike tasks (urgent/overdue)
+- Cross-reference with customer sentiment signals (Slack complaints, Gmail escalations, HubSpot deal risks)
+- Include due dates from Risk Register/Jira/Wrike/Calendar to show escalation timelines
+- Show status: 🚨 Overdue, ⚠️ At Risk, 🔄 In Progress, ✅ Mitigated
+- Prioritize by: (1) Customer revenue impact, (2) Escalation proximity, (3) Cross-functional dependencies
+- **Format risks as**: "[RiskID/IssueKey] Risk Title" for traceability
+
+List 5-7 highest severity risks only.
+
+### 3. CX SIGNALS (Sentiment Analysis)
+**Customer Sentiment Pulse**:
+
+**Instructions**: Aggregate insights from SLACK, GMAIL, HUBSPOT, CONFLUENCE, JIRA, WRIKE
+
+Analyze for:
+- 😊 **Positive signals**: Customer wins, successful launches, deal closures, praise
+- 😐 **Neutral signals**: Standard operations, monitoring items, routine updates
+- 😟 **Negative signals**: Complaints, escalations, churn risks, support issues
+- 🔥 **Critical alerts**: Executive escalations, at-risk renewals, urgent support tickets
+
+Format as grouped bullets by source:
+**SLACK** (Team Updates):
+- [sentiment emoji] Key theme → insight (quote if available)
+
+**GMAIL** (Executive Communications):
+- [sentiment emoji] Key theme → insight (quote if available)
+
+**HUBSPOT** (Deals & Pipeline):
+- [sentiment emoji] Deal health → account risks (specific accounts if mentioned)
+
+**JIRA + WRIKE** (Project Signals):
+- [sentiment emoji] Development velocity → blocked/at-risk items
+
+Include:
+- Quote snippets that illustrate sentiment (1-2 per source)
+- Trending patterns (▲ improving, ▼ declining, ↔ stable)
+- Correlation with risks from Section 2
+
+### 4. STAKEHOLDER IMPACT (Cross-Functional Risk Map)
+Markdown table: Stakeholder | Role | Impact Level | Primary Concern | Action Needed
+
+**Impact Levels**:
+- 🔴 Critical: Blocked, urgent escalation, requires immediate exec decision
+- 🟠 High: At-risk deliverables, coordination needed, potential delays
+- 🟡 Medium: Monitoring, dependencies, proactive communication
+- 🟢 Low: On track, no action required
+
+**Instructions**:
+- **PRIMARY SOURCE**: Use STAKEHOLDERS CSV (Name, Role, Type, Influence, EngagementPlan)
+- Map risks from Section 2 to stakeholder owners (from Risk Register Owner field and Jira Assignee)
+- Cross-reference Calendar meetings for stakeholder engagement
+- Cross-reference Confluence for documented concerns/plans
+- Show what each stakeholder needs (decision, resource, visibility, approval)
+- Prioritize by Influence level (High > Medium > Low) and Type (Sponsor > Driver > Deliver > Govern)
+
+### 5. NEXT 7-DAY ACTIONS (Tactical Mitigation Plan)
+**Immediate Actions** (prioritized by urgency):
+
+**Instructions**: Extract from Risk Register (Plan field), Jira (In Progress/To Do), Wrike (active tasks), Calendar (upcoming deadlines)
+
+1. **[Day 1-2]** Action item → expected outcome (owner from Stakeholders/Risk Register, due date from Jira/Wrike)
+2. **[Day 3-4]** Action item → expected outcome (owner, due date)
+3. **[Day 5-7]** Action item → expected outcome (owner, due date)
+
+**Escalation Watch List**:
+- Item with approaching deadline → consequence if missed (date from Calendar/Jira/Risk Register TargetDate)
+- Item requiring executive decision → business impact (decision owner from Stakeholders)
+
+**Success Metrics**:
+- How will we measure risk mitigation?
+- What KPIs should improve in next 7 days?
+- Reference Risk Register Strategy/Plan fields for mitigation approach
+
+FOCUS AREAS (from configuration):
+{chr(10).join('- ' + focus for focus in prompt_focus)}
+
+TONE GUIDELINES:
+- **Risk-first language**: Lead with severity and customer impact
+- **Urgency indicators**: Use dates, deadlines, escalation timelines
+- **Quantify impact**: Revenue at risk, customer count, SLA breaches, deal pipeline
+- **Actionable**: Every risk needs a mitigation with owner and ETA
+- **Data-driven**: Reference specific signals from Slack/Gmail/HubSpot
+- **Executive-ready**: Assume audience is C-suite making budget/resource decisions
+
+CRITICAL ANALYSIS RULES:
+1. **Correlate data sources**: Connect Jira/Wrike tasks to CX signals (e.g., "Bug-123 delay correlates with 3 Slack escalations")
+2. **Escalation math**: Calculate days until deadline, days overdue, trend velocity
+3. **Sentiment scoring**: Aggregate positive/negative signals per source
+4. **Risk prioritization**: High severity + near deadline + customer revenue = top priority
+5. **Stakeholder mapping**: Who is blocked by what, who needs to decide what
+
+AVOID:
+- Generic risk descriptions without customer impact
+- Missing severity levels or due dates
+- Ignoring sentiment signals from Slack/Gmail/HubSpot
+- Risks without clear owners or mitigation plans
+- Technical jargon without business context
+
+This report must enable leadership to triage CX risks and allocate resources in under 5 minutes.
+"""
+
+    return prompt
+
+
+def summarize_with_ai(combined_data: str, config: Dict[str, Any], scenario: str = None) -> str:
     """
     Call OpenAI to generate the summary.
 
     Args:
         combined_data: Combined text from all sources
         config: Application configuration
+        scenario: Optional scenario name
 
     Returns:
         AI-generated summary
     """
-    prompt = build_prompt(combined_data, config)
+    prompt = build_prompt(combined_data, config, scenario)
 
     ai_config = config.get("ai", {})
     model = ai_config.get("model", MODEL)
@@ -219,9 +451,18 @@ def summarize_with_ai(combined_data: str, config: Dict[str, Any]) -> str:
     return response.choices[0].message.content.strip()
 
 
-def write_markdown_output(summary: str, config: Dict[str, Any]) -> str:
+def write_markdown_output(summary: str, config: Dict[str, Any], scenario: str = None) -> str:
     """Write summary to Markdown file."""
-    md_config = config.get("output", {}).get("formats", {}).get("markdown", {})
+    # Get output config from scenario or default
+    if scenario and scenario in config.get("scenarios", {}):
+        scenario_config = config["scenarios"][scenario]
+        md_config = scenario_config.get("output", {}).get("formats", {}).get("markdown", {})
+        report_title = scenario_config.get("title", "Report")
+        sources = "Jira, Wrike, Slack, Gmail, HubSpot, Confluence, Calendar, Risk Register"
+    else:
+        md_config = config.get("output", {}).get("formats", {}).get("markdown", {})
+        report_title = config.get("report", {}).get("title", "Weekly Program Status")
+        sources = "Meeting Notes, Jira, Slack"
 
     if not md_config.get("enabled", True):
         return None
@@ -234,14 +475,12 @@ def write_markdown_output(summary: str, config: Dict[str, Any]) -> str:
     filename = filename_pattern.replace("{date}", today)
     filepath = os.path.join(output_dir, filename)
 
-    report_title = config.get("report", {}).get("title", "Weekly Program Status")
-
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(f"# {report_title} ({today})\n\n")
         f.write(summary)
         f.write(f"\n\n---\n")
         f.write(f"*Generated automatically by Status Summarizer Bot | {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
-        f.write("*Sources: Meeting Notes, Jira, Slack*\n")
+        f.write(f"*Sources: {sources}*\n")
 
     return filepath
 
@@ -444,9 +683,16 @@ def markdown_to_html_sections(markdown_text: str) -> str:
     return '\n'.join(html_parts)
 
 
-def write_html_output(summary: str, config: Dict[str, Any]) -> str:
+def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None) -> str:
     """Write summary to HTML file using template."""
-    html_config = config.get("output", {}).get("formats", {}).get("html", {})
+    # Get output config from scenario or default
+    if scenario and scenario in config.get("scenarios", {}):
+        scenario_config = config["scenarios"][scenario]
+        html_config = scenario_config.get("output", {}).get("formats", {}).get("html", {})
+        report_title = scenario_config.get("title", "Report")
+    else:
+        html_config = config.get("output", {}).get("formats", {}).get("html", {})
+        report_title = config.get("report", {}).get("title", "Weekly Program Status")
 
     if not html_config.get("enabled", False):
         return None
@@ -470,24 +716,34 @@ def write_html_output(summary: str, config: Dict[str, Any]) -> str:
     html_content = markdown_to_html_sections(summary)
 
     # Prepare template variables
-    report_title = config.get("report", {}).get("title", "Weekly Program Status")
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Create Jinja2 template and render
     template = Template(template_str)
-    html_output = template.render(
-        title=report_title,
-        date=today,
-        content=html_content,
-        timestamp=timestamp,
-        # Default KPI values (can be extracted from summary in future)
-        kpi_delivery_value='Stable',
-        kpi_delivery_trend='Trajectory ↗',
-        kpi_velocity_value='Healthy',
-        kpi_velocity_trend='Sustained ↑',
-        kpi_cost_value='Caution',
-        kpi_cost_trend='Infra ↑'
-    )
+    template_vars = {
+        'title': report_title,
+        'date': today,
+        'content': html_content,
+        'timestamp': timestamp,
+        'scenario': scenario
+    }
+
+    # Add scenario-specific variables
+    if scenario == 'sentient_cx_risk_radar':
+        # Extract risk posture from summary if available (simple extraction)
+        template_vars['risk_posture'] = None  # Could be extracted from summary
+    else:
+        # Default KPI values for standard reports
+        template_vars.update({
+            'kpi_delivery_value': 'Stable',
+            'kpi_delivery_trend': 'Trajectory ↗',
+            'kpi_velocity_value': 'Healthy',
+            'kpi_velocity_trend': 'Sustained ↑',
+            'kpi_cost_value': 'Caution',
+            'kpi_cost_trend': 'Infra ↑'
+        })
+
+    html_output = template.render(**template_vars)
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html_output)
@@ -495,31 +751,40 @@ def write_html_output(summary: str, config: Dict[str, Any]) -> str:
     return filepath
 
 
-def main():
-    """Main execution flow."""
+def main(scenario: str = None):
+    """
+    Main execution flow.
+
+    Args:
+        scenario: Optional scenario name to run (e.g., 'sentient_cx_risk_radar')
+                 If None, runs default weekly status report
+    """
     print("=" * 80)
-    print("🤖 STATUS SUMMARIZER BOT v2.0")
+    if scenario:
+        print(f"🤖 STATUS SUMMARIZER BOT v2.0 - Scenario: {scenario}")
+    else:
+        print("🤖 STATUS SUMMARIZER BOT v2.0")
     print("=" * 80)
 
     # Load configuration
     config = load_config()
 
-    # Ingest from all sources
-    combined_data = ingest_all_sources(config)
+    # Ingest from all sources (scenario-aware)
+    combined_data = ingest_all_sources(config, scenario)
 
-    # Generate AI summary
-    summary = summarize_with_ai(combined_data, config)
+    # Generate AI summary (scenario-aware)
+    summary = summarize_with_ai(combined_data, config, scenario)
 
     print("\n📝 Writing outputs...")
 
-    # Write outputs
+    # Write outputs (scenario-aware)
     outputs = []
 
-    md_path = write_markdown_output(summary, config)
+    md_path = write_markdown_output(summary, config, scenario)
     if md_path:
         outputs.append(f"Markdown: {md_path}")
 
-    html_path = write_html_output(summary, config)
+    html_path = write_html_output(summary, config, scenario)
     if html_path:
         outputs.append(f"HTML: {html_path}")
 
@@ -532,4 +797,14 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    # Check for scenario argument
+    scenario_arg = None
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--scenario" and len(sys.argv) > 2:
+            scenario_arg = sys.argv[2]
+        else:
+            scenario_arg = sys.argv[1]
+
+    main(scenario=scenario_arg)

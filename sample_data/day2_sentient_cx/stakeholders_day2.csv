@@ -1,0 +1,10 @@
+Name,Role,Type,Org,Influence,EngagementPlan,Email
+Lisa Chen,Chief Customer Officer,Sponsor,Executive,High,Weekly brief + monthly KPI review,lisa.chen@auroranb.com
+Jordan Okafor,Principal TPM / PM,Driver,Program Mgmt,High,Daily standup; cross-team unblock,jordan.okafor@auroranb.com
+Priya Natarajan,"Dir Eng, CX Platforms",Deliver,Engineering,High,"Feature flags, rollout gates",priya.natarajan@auroranb.com
+Miguel Alvarez,Head of Data Science,Deliver,Data & AI,High,"Model quality, latency",miguel.alvarez@auroranb.com
+Renée Park,VP Risk & Compliance,Govern,Compliance,High,"Policies, audits, approvals",renee.park@auroranb.com
+Kevin Patel,Dir Customer Support Ops,Adopt,CX Ops,Medium,"Macros, training, playbooks",kevin.patel@auroranb.com
+Amira Shah,Senior Finance Manager,Advise,Finance,Medium,EBITDA & ROI model,amira.shah@auroranb.com
+Omar Haddad,Security Architect,Govern,Security,Medium,"Threat modeling, incident runbooks",omar.haddad@auroranb.com
+Taylor Brooks,Sr Product Manager,Deliver,Product,Medium,"Roadmap, UX, dashboards",taylor.brooks@auroranb.com

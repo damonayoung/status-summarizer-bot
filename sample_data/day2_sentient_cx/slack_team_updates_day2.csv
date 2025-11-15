@@ -1,0 +1,6 @@
+Date,Channel,Author,Handle,Message
+2025-11-12,#exec-brief,Lisa Chen,@lchen,Q4 target: reduce AHT by 3 minutes via assistive replies.
+2025-11-13,#cx-war-room,Kevin Patel,@kpatel,Spike in 'card declined' intents after 9am; monitoring workaround thread.
+2025-11-13,#ml-lab,Miguel Alvarez,@malvarez,Model v0.12 shows +2.1% F1 on 'at-risk churn'—latency trade-off under review.
+2025-11-11,#risk-compliance,Renée Park,@rpark,Reminder: auto-replies must attach policy snippet for dispute-chargeback.
+2025-11-10,#eng-cx,Priya Natarajan,@pnatarajan,Feature flag ‘AUTO_REPLY’ now live. Default OFF for EMEA until audit.

@@ -22,7 +22,7 @@ data_sources:
 
 # AI Model Configuration
 ai:
-  model: "gpt-4o"  # or gpt-4, gpt-4o-mini, gpt-3.5-turbo
+  model: "gpt-4o" # or gpt-4, gpt-4o-mini, gpt-3.5-turbo
   temperature: 0.3
   max_tokens: 2000
 
@@ -80,7 +80,7 @@ distribution:
     enabled: false
     channel: "#weekly-status"
     # webhook_url: "${SLACK_WEBHOOK_URL}"
-    mention_users: []  # e.g., ["@eng-lead", "@product-manager"]
+    mention_users: [] # e.g., ["@eng-lead", "@product-manager"]
 
   email:
     enabled: false
@@ -135,3 +135,77 @@ advanced:
       - stakeholder_impact
       - technical_complexity
       - dependency_count
+
+# Scenarios - Alternative report configurations
+scenarios:
+  sentient_cx_risk_radar:
+    enabled: true
+    title: "Sentient CX Risk Radar – Aurora National Bank"
+
+    # Data sources specific to this scenario
+    data_sources:
+      jira:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/jira_issues_day2.csv"
+
+      wrike:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/wrike_tasks_day2.csv"
+
+      slack:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/slack_team_updates_day2.csv"
+
+      gmail:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/gmail_weekly_highlights_day2.csv"
+
+      hubspot:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/hubspot_deals_day2.csv"
+
+      confluence:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/confluence_pages_day2.csv"
+
+      calendar:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/calendar_meetings_day2.csv"
+
+      risk_register:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/risk_register_day2.csv"
+
+      stakeholders:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/stakeholders_day2.csv"
+
+    # Report sections specific to CX Risk Radar
+    sections:
+      - executive_overview
+      - top_risks
+      - cx_signals
+      - stakeholder_impact
+      - next_7day_actions
+
+    # Output configuration
+    output:
+      formats:
+        markdown:
+          enabled: true
+          path: "output/"
+          filename_pattern: "sentient_cx_risk_radar_{date}.md"
+
+        html:
+          enabled: true
+          path: "output/"
+          filename_pattern: "sentient_cx_risk_radar_{date}.html"
+          template: "templates/executive_report.html"
+
+    # AI prompt customization for CX focus
+    prompt_focus:
+      - "Customer experience risk assessment"
+      - "Escalation timelines and severity scoring"
+      - "Cross-functional stakeholder impact analysis"
+      - "Actionable 7-day mitigation plans"
+      - "CX sentiment trends and early warning signals"

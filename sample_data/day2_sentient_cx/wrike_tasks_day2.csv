@@ -1,0 +1,6 @@
+TaskID,Title,Owner,Status,StartDate,DueDate,Notes,RequestedBy
+W-5821,Draft SOP: AI-assisted reply guidelines,Jordan Okafor,In Progress,2025-11-11,2025-11-15,Needs review by Compliance,Jordan Okafor
+W-5830,Create CX macros for top 10 intents,Kevin Patel,New,2025-11-13,2025-11-18,Tag training phrases,Kevin Patel
+W-5809,Update runbook for incident SEV-2 handling,Omar Haddad,Blocked,2025-11-09,2025-11-14,Pending security review,Omar Haddad
+W-5842,Finance model for EBITDA impact calc,Amira Shah,In Review,2025-11-12,2025-11-19,Align factors with CFO office,Amira Shah
+W-5850,Executive dashboard draft in Looker Studio,Taylor Brooks,In Progress,2025-11-10,2025-11-16,Connect Sheets export,Taylor Brooks

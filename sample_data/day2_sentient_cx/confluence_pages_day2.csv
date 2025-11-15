@@ -1,0 +1,4 @@
+PageID,Title,Owner,Version,LastUpdated,Summary
+CONF-1201,Sentient CX: Architecture Overview,Jordan Okafor,v1.8,2025-11-06,Updated diagrams for RAG + redaction layer
+CONF-1210,Auto-Reply Governance Policy,Renée Park,v2.3,2025-11-11,Added chargeback dispute appendix
+CONF-1188,ML Model Cards – Churn Classifier,Miguel Alvarez,v0.12,2025-11-13,Added latency and fairness notes

@@ -1,0 +1,4 @@
+﻿week_start,avg_sentiment_score,complaints,escalations,latency_ms,blocked_tickets,trust_index,notes
+10/13/25,82,12,2,180,1,91,Stable
+10/20/25,74,19,5,225,3,84,Declining
+10/27/25,66,28,8,279,7,72,Significant deterioration

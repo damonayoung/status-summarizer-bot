@@ -1,0 +1,4 @@
+RiskID,Title,Severity,Strategy,Plan,Owner,TargetDate
+R-12,Auto-reply hallucination risk,High,Mitigate,Enable conservative mode; human-in-the-loop for disputes,Priya Natarajan,2025-11-18
+R-19,GDPR/CCPA non-compliance,High,Block,Gate features behind policy check + audit trail,Renée Park,2025-11-16
+R-24,Model latency > SLA,Medium,Mitigate,Autoscale inference; rollback model v0.12 if p95>800ms,Miguel Alvarez,2025-11-15

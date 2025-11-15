@@ -1,0 +1,7 @@
+IssueKey,Summary,IssueType,Status,Priority,Assignee,Created,DueDate,Description,Labels
+CX-1021,Implement PII redaction in chat transcripts,Story,In Progress,High,Priya Natarajan,2025-11-12,2025-11-19,RAG pipeline must mask SSNs before indexing,GenAI;Compliance
+CX-1034,Latency spike in sentiment analyzer,Bug,To Do,Medium,Miguel Alvarez,2025-11-13,2025-11-16,p95 increased from 400ms to 1.2s after model bump,Observability
+CX-1012,Stakeholder bot: add weekly brief to Slack,Story,In Review,Medium,Jordan Okafor,2025-11-10,2025-11-14,Summarize Jira+Wrike+Gmail into #exec-brief,Agentic;Slack
+CX-0990,GDPR export: include agent actions log,Story,Blocked,High,Renée Park,2025-11-08,2025-11-18,Awaiting legal sign-off on retention window,Compliance
+CX-1040,Fine-tune classification for 'at-risk churn',Story,In Progress,High,Miguel Alvarez,2025-11-11,2025-11-21,Retrain on latest labeled interactions,ML;Churn
+CX-1004,Add Feature flags for auto-replies,Task,Done,Low,Priya Natarajan,2025-11-03,2025-11-11,Kill switch for Gemini-assisted replies,FeatureFlag
