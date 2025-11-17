@@ -1554,7 +1554,7 @@
     <section class="cx-status-banner">
       <div class="cx-status-pill cx-status-critical">
         <span class="cx-status-dot"></span>
-        <span class="cx-status-label">CX Status: Elevated</span>
+        <span class="cx-status-label">Status: Elevated (2 critical risks)</span>
       </div>
       <p class="cx-status-text">
         Immediate action required on 2 critical risks impacting customer experience and regulatory exposure.
@@ -1566,19 +1566,19 @@
       <h2 class="section-title">Executive Summary</h2>
       <div class="exec-summary-grid">
         <div class="exec-summary-main">
-          <p><strong>Situation:</strong> CX health is elevated with two critical risks driving regulatory and customer experience exposure.</p>
-          <p><strong>Why it matters:</strong> These risks concentrate over $8.0M in potential financial impact across revenue, churn, and compliance exposure.</p>
-          <p><strong>Now:</strong> Sentiment is declining, escalations are rising, and a key compliance stakeholder is blocking a critical mitigation.</p>
-          <p><strong>Next 7 days:</strong> Focus on stabilizing latency, reducing hallucinations, and unblocking compliance sign-off.</p>
+          <p><strong>Situation:</strong> CX health elevated—two critical risks drive regulatory and customer experience exposure.</p>
+          <p><strong>Why it matters:</strong> Over $8.0M in potential impact across revenue, churn, and compliance.</p>
+          <p><strong>Now:</strong> Sentiment down, escalations up, and compliance is blocking key mitigation.</p>
+          <p><strong>Next 7 days:</strong> Stabilize latency, reduce hallucinations, unblock compliance sign-off.</p>
         </div>
         <div class="exec-summary-top5">
           <h3 class="exec-top5-heading">Top 5 Things You Must Know</h3>
           <ol class="exec-top5-list">
-            <li>Two critical risks drive the majority of financial and CX exposure.</li>
-            <li>Sentiment has fallen for several weeks, with escalations trending upward.</li>
-            <li>Regulatory non-compliance is the single largest financial risk driver.</li>
-            <li>One high-influence stakeholder remains resistant and is blocking key mitigations.</li>
-            <li>The next 7 days are decisive for stabilizing CX and reducing regulatory exposure.</li>
+            <li>Two critical risks drive majority of financial and CX exposure.</li>
+            <li>Sentiment falling for weeks—escalations trending up.</li>
+            <li>Regulatory non-compliance is largest single financial risk.</li>
+            <li>High-influence stakeholder blocking key mitigations.</li>
+            <li>Next 7 days decisive for stabilizing CX and reducing exposure.</li>
           </ol>
         </div>
       </div>
@@ -1805,7 +1805,7 @@
         <article class="risk-card card">
           <header class="risk-card-header">
             <div>
-              <div class="risk-id">{{ risk.id }}</div>
+              <div class="risk-id">{{ risk.id }}{% if loop.index == 1 %} · Critical risk #1{% elif loop.index == 2 %} · Critical risk #2{% endif %}</div>
               <h3 class="risk-title">{{ risk.title }}</h3>
             </div>
             <span class="badge
