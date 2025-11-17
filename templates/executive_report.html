@@ -1177,6 +1177,125 @@
       margin-bottom:6px;
     }
 
+    /* AI-Generated Risk Insights Section */
+    .ai-insights-section{
+      margin:32px 0 24px 0;
+      padding:24px;
+      background:linear-gradient(135deg, #f8fafc, #f1f5f9);
+      border-radius:12px;
+      border:1px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    .ai-insights-section h2{
+      font-size:20px;
+      font-weight:700;
+      color:var(--ink);
+      margin:0 0 6px 0;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .ai-insights-section h2::before{
+      content:'🤖';
+      font-size:18px;
+    }
+    .ai-insights-section .section-subtitle{
+      font-size:12px;
+      color:var(--mute);
+      margin:0 0 20px 0;
+      font-style:italic;
+    }
+    .ai-insights-layout{
+      display:grid;
+      grid-template-columns:minmax(0, 2fr) minmax(0, 1fr);
+      gap:24px;
+      align-items:start;
+    }
+    .ai-insights-main{
+      background:#ffffff;
+      border-radius:8px;
+      padding:18px 20px;
+      border:1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    }
+    .ai-insights-main h3{
+      font-size:0.95rem;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 14px 0;
+      letter-spacing:-0.01em;
+    }
+    .ai-insights-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+    }
+    .ai-insights-list li{
+      margin-bottom:12px;
+      padding-left:20px;
+      position:relative;
+      font-size:0.85rem;
+      line-height:1.6;
+      color:#374151;
+    }
+    .ai-insights-list li::before{
+      content:'→';
+      position:absolute;
+      left:0;
+      color:#3b82f6;
+      font-weight:700;
+    }
+    .ai-insights-list li strong{
+      color:#111827;
+      font-weight:600;
+    }
+    .ai-insights-side{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .ai-metric-pill{
+      background:#ffffff;
+      border:1px solid #e5e7eb;
+      border-radius:8px;
+      padding:14px 16px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+    .ai-metric-pill .metric-label{
+      font-size:0.7rem;
+      text-transform:uppercase;
+      letter-spacing:0.05em;
+      color:#6b7280;
+      font-weight:600;
+      margin-bottom:6px;
+    }
+    .ai-metric-pill .metric-value{
+      font-size:1.5rem;
+      font-weight:700;
+      color:#111827;
+      display:block;
+      margin-bottom:4px;
+    }
+    .ai-metric-pill .metric-caption{
+      font-size:0.75rem;
+      color:#6b7280;
+      line-height:1.4;
+    }
+    .ai-metric-pill.metric-critical .metric-value{
+      color:#dc2626;
+    }
+    .ai-metric-pill.metric-warning .metric-value{
+      color:#f59e0b;
+    }
+    .ai-metric-pill.metric-info .metric-value{
+      color:#3b82f6;
+    }
+    @media (max-width: 900px) {
+      .ai-insights-layout{
+        grid-template-columns:minmax(0, 1fr);
+      }
+    }
+
     /* EBITDA Waterfall Section */
     .ebitda-section{
       margin:32px 0 24px 0;
@@ -1830,6 +1949,47 @@
       </div>
     </section>
 
+    <!-- AI-Generated Risk Insights -->
+    <section class="ai-insights-section">
+      <h2>AI-Generated Risk Insights</h2>
+      <p class="section-subtitle">
+        Machine analysis of risk patterns, sentiment drivers, and exposure trends
+      </p>
+
+      <div class="ai-insights-layout">
+        <div class="ai-insights-main">
+          <h3>Key Findings</h3>
+          <ul class="ai-insights-list">
+            <li><strong>Sentiment deterioration:</strong> CX sentiment declined {{ sentiment_drop_pct|default(-25.6) }}% from baseline, driven by automation quality issues and response inconsistencies.</li>
+            <li><strong>Escalation surge:</strong> Support escalations increased significantly, correlating with bot misrouting and reduced trust in AI-assisted channels.</li>
+            <li><strong>Compliance exposure:</strong> Regulatory risks account for the largest share of total exposure, requiring immediate mitigation focus.</li>
+            <li><strong>Financial impact:</strong> Combined CX risks represent ${{ total_exposure_millions|default('10.0') }}M in potential revenue and penalty exposure.</li>
+            <li><strong>Stabilization opportunity:</strong> EBITDA modeling shows {{ ebitda.automation_gains|default('2.5') }}M potential uplift from automation improvements offsetting current drag.</li>
+          </ul>
+        </div>
+
+        <div class="ai-insights-side">
+          <div class="ai-metric-pill metric-critical">
+            <div class="metric-label">CX Sentiment</div>
+            <div class="metric-value">{{ sentiment_index_current|default('61') }}</div>
+            <div class="metric-caption">↓ {{ sentiment_drop_pct|default(-25.6) }}% from baseline</div>
+          </div>
+
+          <div class="ai-metric-pill metric-warning">
+            <div class="metric-label">Critical Risks</div>
+            <div class="metric-value">{{ critical_risks_count|default('2') }}</div>
+            <div class="metric-caption">High impact & likelihood</div>
+          </div>
+
+          <div class="ai-metric-pill metric-info">
+            <div class="metric-label">Total Exposure</div>
+            <div class="metric-value">${{ total_exposure_millions|default('10.0') }}M</div>
+            <div class="metric-caption">Revenue + regulatory risk</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Analyst Notes & Detail (Appendix) -->
     <section class="analyst-notes">
       <div class="section-header">
@@ -1885,16 +2045,6 @@
             <li><strong>Risk classifications:</strong> Based on ImpactLevel and LikelihoodLevel from Day 2 risk register.</li>
             <li><strong>Timeline assumptions:</strong> Estimates assume no major scope changes or external blockers.</li>
           </ul>
-        </div>
-
-        <div class="analyst-note-block note-type-ai">
-          <h3>
-            AI-Generated Insights
-            <span class="note-pill note-type-ai">AI Lens</span>
-          </h3>
-          <div class="ai-summary-excerpt">
-            {{content|safe}}
-          </div>
         </div>
       </div>
     </section>
