@@ -685,6 +685,17 @@
       background:#fafbfc;
       margin-top:6px;
     }
+    .chart-interpretation{
+      margin-top:12px;
+      padding:10px 12px;
+      background:rgba(59, 130, 246, 0.05);
+      border-left:3px solid var(--accent);
+      border-radius:0 6px 6px 0;
+      font-size:12px;
+      line-height:1.6;
+      color:#374151;
+      font-style:italic;
+    }
     .placeholder-text{
       padding:40px 20px;
       text-align:center;
@@ -1205,34 +1216,27 @@
     </section>
 
     <!-- Visual Risk Snapshot (Charts) -->
-    {% if sentiment_trend_chart or complaints_escalations_chart or risk_exposure_chart or risk_heatmap_chart or stakeholder_map_chart %}
+    {% if complaints_escalations_chart or risk_exposure_chart or risk_heatmap_chart or stakeholder_map_chart %}
     <section class="chart-strip">
       <h2 class="section-title">Visual Risk Snapshot</h2>
       <div class="chart-grid">
-        {% if sentiment_trend_chart %}
-        <div class="chart-card">
-          <h3>CX Sentiment Trend</h3>
-          <img src="{{ sentiment_trend_chart }}" alt="CX Sentiment Trend" />
-        </div>
-        {% endif %}
-
         {% if complaints_escalations_chart %}
         <div class="chart-card">
-          <h3>Complaints & Escalations</h3>
+          <h3>Escalations: 7-Day Trend</h3>
           <img src="{{ complaints_escalations_chart }}" alt="Complaints and Escalations" />
         </div>
         {% endif %}
 
         {% if risk_exposure_chart %}
         <div class="chart-card">
-          <h3>Top Financial Exposures</h3>
+          <h3>Exposure: Distribution by Severity</h3>
           <img src="{{ risk_exposure_chart }}" alt="Top Risk Exposures" />
         </div>
         {% endif %}
 
         {% if risk_heatmap_chart %}
         <div class="chart-card">
-          <h3>Impact × Likelihood Heatmap</h3>
+          <h3>Risk Heatmap: Impact × Likelihood</h3>
           <img src="{{ risk_heatmap_chart }}" alt="Risk Heatmap" />
         </div>
         {% endif %}
@@ -1466,6 +1470,13 @@
           <h3>CX Sentiment & Trust Index</h3>
           {% if sentiment_trend_chart %}
           <img src="{{ sentiment_trend_chart }}" alt="CX Sentiment Trend" />
+          <p class="chart-interpretation">
+            {% if sentiment_index_baseline and sentiment_index_current and sentiment_drop_pct %}
+              Sentiment has declined from {{ sentiment_index_baseline|int }} to {{ sentiment_index_current|int }} ({{ sentiment_drop_pct }}%), with deterioration driven by automation incidents and response quality issues.
+            {% else %}
+              Sentiment trend shows progressive decline over the measurement period, correlating with increased escalation volume.
+            {% endif %}
+          </p>
           {% else %}
           <p class="placeholder-text">Sentiment chart will appear here once trend data is available.</p>
           {% endif %}
