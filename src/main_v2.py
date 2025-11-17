@@ -22,6 +22,7 @@ from ingestors.slack_ingestor import SlackIngestor
 from ingestors.notes_ingestor import NotesIngestor
 from ingestors.csv_ingestor import CSVIngestor
 from charts import generate_risk_charts
+from context import build_ebitda_context
 
 
 
@@ -1621,6 +1622,10 @@ def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None
                 template_vars['risk_exposure_chart'] = chart_paths.get('risk_exposure')
                 template_vars['risk_heatmap_chart'] = chart_paths.get('risk_heatmap')
                 template_vars['stakeholder_map_chart'] = chart_paths.get('stakeholder_map')
+
+            # Add EBITDA context
+            if 'ebitda' in risk_context:
+                template_vars['ebitda'] = risk_context['ebitda']
     else:
         # Default KPI values for standard reports
         template_vars.update({
@@ -1662,6 +1667,14 @@ def main(scenario: str = None):
     if scenario == "sentient_cx_risk_radar":
         # Platinum Day 2 pipeline: structured context → charts → v2 AI summarizer
         risk_context = build_risk_context(config, scenario)
+
+        # Build EBITDA waterfall context
+        ebitda_context = build_ebitda_context(risk_context, config)
+        risk_context["ebitda"] = ebitda_context
+        print(f"\n💰 EBITDA Context:")
+        print(f"   Baseline: ${ebitda_context['baseline_ebitda']}M")
+        print(f"   Final: ${ebitda_context['final_ebitda']}M")
+        print(f"   Impact: ${ebitda_context['total_impact']}M ({ebitda_context['impact_pct']}%)")
 
         # Get output directory from config
         scenario_config = config.get("scenarios", {}).get(scenario, {})
