@@ -1032,43 +1032,45 @@
 
     /* Analyst Notes Section */
     .analyst-notes{
-      margin-top:32px;
-      padding:24px 20px;
-      background:#f9fafb;
-      border-top:2px solid var(--border);
-      border-radius:8px;
+      margin-top:24px;
+      padding:20px 24px;
+      background:#fafbfc;
+      border-top:1px solid #e5e7eb;
+      border-radius:6px;
     }
     .analyst-notes .section-header{
-      margin-bottom:20px;
+      margin-bottom:16px;
     }
     .analyst-notes .section-header h2{
-      font-size:18px;
+      font-size:16px;
       font-weight:700;
-      color:var(--ink);
-      margin:0 0 8px 0;
+      color:#374151;
+      margin:0 0 6px 0;
+      letter-spacing:-0.01em;
     }
     .analyst-notes .section-subtitle{
-      font-size:12px;
-      color:var(--mute);
+      font-size:11px;
+      color:#6b7280;
       font-style:italic;
       margin:0;
+      line-height:1.4;
     }
     .analyst-notes-grid{
       display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
-      gap:16px;
-      margin-top:16px;
+      grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
+      gap:14px;
+      margin-top:14px;
     }
     .analyst-note-block{
       background:#ffffff;
       color:#374151;
-      border-radius:8px;
-      padding:16px 18px;
-      font-size:0.85rem;
+      border-radius:6px;
+      padding:12px 14px;
+      font-size:0.8rem;
       border:1px solid #e5e7eb;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       position:relative;
-      padding-left:24px;
+      padding-left:18px;
     }
     .analyst-note-block::before{
       content:'';
@@ -1076,76 +1078,76 @@
       left:0;
       top:0;
       bottom:0;
-      width:3px;
+      width:2px;
       background:var(--accent);
-      border-radius:8px 0 0 8px;
+      border-radius:6px 0 0 6px;
     }
     .analyst-note-block.note-type-trend::before{
-      background:#3b82f6;
+      background:#60a5fa;
     }
     .analyst-note-block.note-type-risk::before{
-      background:#ef4444;
+      background:#f87171;
     }
     .analyst-note-block.note-type-caveat::before{
-      background:#f59e0b;
+      background:#fbbf24;
     }
     .analyst-note-block.note-type-ai::before{
-      background:#8b5cf6;
+      background:#a78bfa;
     }
     .analyst-note-block h3{
       margin-top:0;
-      margin-bottom:12px;
-      font-size:0.9rem;
-      color:#111827;
+      margin-bottom:10px;
+      font-size:0.85rem;
+      color:#1f2937;
       font-weight:700;
       letter-spacing:-0.01em;
       display:flex;
       align-items:center;
-      gap:8px;
+      gap:6px;
     }
     .note-pill{
       display:inline-block;
-      font-size:0.65rem;
+      font-size:0.6rem;
       font-weight:600;
       text-transform:uppercase;
-      letter-spacing:0.05em;
-      padding:2px 8px;
-      border-radius:4px;
+      letter-spacing:0.04em;
+      padding:2px 6px;
+      border-radius:3px;
       border:1px solid;
     }
     .note-pill.note-type-trend{
-      background:rgba(59, 130, 246, 0.1);
+      background:rgba(96, 165, 250, 0.08);
       color:#2563eb;
-      border-color:#3b82f6;
+      border-color:#93c5fd;
     }
     .note-pill.note-type-risk{
-      background:rgba(239, 68, 68, 0.1);
+      background:rgba(248, 113, 113, 0.08);
       color:#dc2626;
-      border-color:#ef4444;
+      border-color:#fca5a5;
     }
     .note-pill.note-type-caveat{
-      background:rgba(245, 158, 11, 0.1);
+      background:rgba(251, 191, 36, 0.08);
       color:#d97706;
-      border-color:#f59e0b;
+      border-color:#fcd34d;
     }
     .note-pill.note-type-ai{
-      background:rgba(139, 92, 246, 0.1);
+      background:rgba(167, 139, 250, 0.08);
       color:#7c3aed;
-      border-color:#8b5cf6;
+      border-color:#c4b5fd;
     }
     .analyst-note-block ul{
       margin:0;
-      padding-left:20px;
+      padding-left:18px;
       list-style-type:disc;
     }
     .analyst-note-block li{
-      margin-bottom:8px;
-      line-height:1.6;
-      color:#4b5563;
-      font-size:0.8rem;
+      margin-bottom:6px;
+      line-height:1.5;
+      color:#6b7280;
+      font-size:0.75rem;
     }
     .analyst-note-block li strong{
-      color:#111827;
+      color:#374151;
       font-weight:600;
     }
     .analyst-note-block.note-type-ai{
@@ -1153,28 +1155,30 @@
       border-color:#e9d5ff;
     }
     .ai-summary-excerpt{
-      font-size:0.8rem;
-      line-height:1.6;
-      color:#4b5563;
+      font-size:0.75rem;
+      line-height:1.5;
+      color:#6b7280;
     }
     .ai-summary-excerpt h1,
     .ai-summary-excerpt h2,
     .ai-summary-excerpt h3{
-      font-size:0.85rem;
-      color:#111827;
-      margin:10px 0 6px;
+      font-size:0.8rem;
+      color:#374151;
+      margin:8px 0 5px;
       font-weight:600;
     }
     .ai-summary-excerpt p{
-      margin:6px 0;
+      margin:5px 0;
     }
     .ai-summary-excerpt ul,
     .ai-summary-excerpt ol{
-      margin:6px 0;
-      padding-left:20px;
+      margin:5px 0;
+      padding-left:18px;
     }
     .ai-summary-excerpt li{
-      margin-bottom:6px;
+      margin-bottom:5px;
+      font-size:0.75rem;
+      line-height:1.5;
     }
 
     /* AI-Generated Risk Insights Section */
@@ -1214,9 +1218,9 @@
     .ai-insights-main{
       background:#ffffff;
       border-radius:8px;
-      padding:18px 20px;
+      padding:16px 18px;
       border:1px solid #e5e7eb;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
     .ai-insights-main h3{
       font-size:0.95rem;
@@ -1995,7 +1999,7 @@
       <div class="section-header">
         <h2>Analyst Notes & Detail (Appendix)</h2>
         <p class="section-subtitle">
-          For TPM / PMO deep dive – assumptions, caveats, and underlying patterns
+          For TPM / PMO use – validate assumptions and trace how top-line messages were derived.
         </p>
       </div>
 
