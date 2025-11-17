@@ -1186,6 +1186,12 @@
       color:#374151;
       font-weight:600;
     }
+    .analyst-note-block p{
+      margin:0 0 10px 0;
+      font-size:0.8rem;
+      line-height:1.5;
+      color:#1f2937;
+    }
     .analyst-note-block.note-type-ai{
       background:linear-gradient(135deg, #faf5ff, #f5f3ff);
       border-color:#e9d5ff;
@@ -2052,16 +2058,17 @@
             CX Trend Summary
             <span class="note-pill note-type-trend">Trend</span>
           </h3>
+          <p><strong>Trend: Sentiment declining for weeks, escalations rising, exposure concentrated in critical buckets.</strong></p>
           <ul>
             {% if sentiment_index_baseline and sentiment_index_current and sentiment_drop_pct %}
-            <li><strong>Sentiment slide:</strong> Declined from {{ sentiment_index_baseline|int }} to {{ sentiment_index_current|int }} ({{ sentiment_drop_pct }}%) over the measurement period.</li>
+            <li><strong>Sentiment slide:</strong> Down from {{ sentiment_index_baseline|int }} to {{ sentiment_index_current|int }} ({{ sentiment_drop_pct }}%).</li>
             {% else %}
-            <li><strong>Sentiment slide:</strong> Progressive decline, correlating with increased escalation volume.</li>
+            <li><strong>Sentiment slide:</strong> Progressive decline, correlating with escalation volume.</li>
             {% endif %}
             {% if escalations_current %}
-            <li><strong>Escalation spike:</strong> Reached {{ escalations_current }} in the most recent period, driven by automation quality issues.</li>
+            <li><strong>Escalation spike:</strong> Reached {{ escalations_current }} in recent period, driven by automation quality issues.</li>
             {% endif %}
-            <li><strong>Risk concentration:</strong> Exposure remains concentrated in high/critical impact buckets.</li>
+            <li><strong>Risk concentration:</strong> Exposure concentrated in high/critical impact buckets.</li>
           </ul>
         </div>
 
@@ -2070,14 +2077,15 @@
             Risk & Exposure Summary
             <span class="note-pill note-type-risk">Risk</span>
           </h3>
+          <p><strong>Exposure: $10M total, with majority sitting in top 3 critical CX risks (compliance, latency, misrouting).</strong></p>
           <ul>
             {% if total_exposure_millions and high_crit_share %}
-            <li><strong>Total Exposure:</strong> ${{ "%.1f"|format(total_exposure_millions) }}M, with {{ high_crit_share }} in High/Critical buckets.</li>
+            <li><strong>Total mapped:</strong> ${{ "%.1f"|format(total_exposure_millions) }}M, with {{ high_crit_share }} in High/Critical buckets.</li>
             {% else %}
-            <li><strong>Total Exposure:</strong> Concentrated in high-severity, high-likelihood quadrants.</li>
+            <li><strong>Total mapped:</strong> Concentrated in high-severity, high-likelihood quadrants.</li>
             {% endif %}
-            <li><strong>Top drivers:</strong> Top 3 risks account for majority of total exposure (compliance, latency, misrouting).</li>
-            <li><strong>Compliance risk:</strong> Compliance-related risks represent the largest single exposure category.</li>
+            <li><strong>Top 3 drivers:</strong> Compliance, latency, and misrouting account for majority of exposure.</li>
+            <li><strong>Compliance dominant:</strong> Largest single risk category by financial impact.</li>
           </ul>
         </div>
 
@@ -2086,11 +2094,12 @@
             Assumptions & Data Caveats
             <span class="note-pill note-type-caveat">Assumptions</span>
           </h3>
+          <p><strong>Assumptions: Directional exposure estimates, composite sentiment index, Day 2 risk register baseline.</strong></p>
           <ul>
-            <li><strong>Financial estimates:</strong> Exposure values are scenario-based estimates, not audit-ready financials.</li>
-            <li><strong>Sentiment methodology:</strong> Sentiment index derived from composite of CSAT, NPS proxy, and response quality metrics.</li>
-            <li><strong>Risk classifications:</strong> Based on ImpactLevel and LikelihoodLevel from Day 2 risk register.</li>
-            <li><strong>Timeline assumptions:</strong> Estimates assume no major scope changes or external blockers.</li>
+            <li><strong>Financial estimates:</strong> Scenario-based, directional—not audit-ready financials.</li>
+            <li><strong>Sentiment methodology:</strong> Composite of CSAT, NPS proxy, and response quality metrics.</li>
+            <li><strong>Risk classifications:</strong> Based on ImpactLevel × LikelihoodLevel from Day 2 register.</li>
+            <li><strong>Timeline assumptions:</strong> No major scope changes or external blockers anticipated.</li>
           </ul>
         </div>
       </div>
