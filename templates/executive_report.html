@@ -875,6 +875,13 @@
       color:#374151;
       margin:0;
     }
+    .risk-ebitda-driver{
+      font-size:11px;
+      color:#6b7280;
+      font-style:italic;
+      margin-top:6px;
+      padding-left:2px;
+    }
 
     /* Stakeholder Landscape Section */
     .stakeholder-section{
@@ -1539,9 +1546,9 @@
           <h3>EBITDA View</h3>
           <ul>
             <li><strong>Baseline EBITDA:</strong> ${{ ebitda.baseline_ebitda|default('0.0') }}M</li>
-            <li><strong>Revenue Leakage:</strong> -${{ ebitda.revenue_leakage|default('0.0') }}M</li>
-            <li><strong>Compliance Penalties:</strong> -${{ ebitda.compliance_penalties|default('0.0') }}M</li>
-            <li><strong>OpEx Inefficiency:</strong> -${{ ebitda.opex_inefficiency|default('0.0') }}M</li>
+            <li><strong>Revenue Leakage:</strong> -${{ ebitda.revenue_leakage|default('0.0') }}M (R2, R3 – latency & misrouting)</li>
+            <li><strong>Compliance Penalties:</strong> -${{ ebitda.compliance_penalties|default('0.0') }}M (R1 – GDPR/CCPA exposure)</li>
+            <li><strong>OpEx Inefficiency:</strong> -${{ ebitda.opex_inefficiency|default('0.0') }}M (R4 – manual workarounds and rework)</li>
             <li><strong>Automation Gains:</strong> +${{ ebitda.automation_gains|default('0.0') }}M</li>
             <li><strong>Final EBITDA:</strong> ${{ ebitda.final_ebitda|default('0.0') }}M</li>
           </ul>
@@ -1828,6 +1835,13 @@
             <div class="risk-exposure-caption">
               ~{{ risk.exposure_share }}% of total mapped exposure
             </div>
+            {% endif %}
+            {% if loop.index == 1 %}
+            <div class="risk-ebitda-driver">EBITDA impact driver: Compliance penalties</div>
+            {% elif loop.index == 2 %}
+            <div class="risk-ebitda-driver">EBITDA impact driver: Revenue leakage</div>
+            {% elif loop.index == 3 %}
+            <div class="risk-ebitda-driver">EBITDA impact driver: Revenue leakage</div>
             {% endif %}
 
             <dl class="risk-meta">
