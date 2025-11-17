@@ -1036,6 +1036,89 @@
       font-size:12px;
     }
 
+    /* EBITDA Waterfall Section */
+    .ebitda-section{
+      margin:32px 0 24px 0;
+      padding-top:32px;
+      border-top:2px solid var(--border);
+    }
+    .ebitda-section-header{
+      margin-bottom:24px;
+    }
+    .ebitda-section-header h2{
+      font-size:20px;
+      font-weight:700;
+      color:var(--ink);
+      margin:0 0 8px 0;
+      padding-bottom:12px;
+      border-bottom:3px solid var(--accent);
+      letter-spacing:-0.01em;
+    }
+    .ebitda-section-header .section-subtitle{
+      font-size:13px;
+      color:var(--mute);
+      margin:8px 0 0;
+    }
+    .ebitda-layout{
+      display:grid;
+      grid-template-columns:minmax(0, 2fr) minmax(0, 1fr);
+      gap:24px;
+      align-items:flex-start;
+    }
+    .ebitda-chart-wrapper{
+      background:#ffffff;
+      border-radius:12px;
+      padding:16px;
+      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+      border:1px solid var(--border);
+    }
+    .ebitda-chart{
+      width:100%;
+      max-width:900px;
+      display:block;
+      margin:0 auto;
+    }
+    .ebitda-summary{
+      background:linear-gradient(135deg, #0f172a, #111827);
+      color:#e5e7eb;
+      border-radius:12px;
+      padding:16px 20px;
+      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.3);
+    }
+    .ebitda-summary h3{
+      margin-top:0;
+      margin-bottom:12px;
+      font-size:16px;
+      color:#f9fafb;
+      font-weight:700;
+      letter-spacing:0.02em;
+    }
+    .ebitda-summary ul{
+      list-style:none;
+      padding-left:0;
+      margin:0;
+    }
+    .ebitda-summary li{
+      margin-bottom:8px;
+      font-size:13px;
+      line-height:1.5;
+    }
+    .ebitda-summary li:last-child{
+      border-top:1px solid rgba(255,255,255,0.2);
+      margin-top:12px;
+      padding-top:12px;
+    }
+    .ebitda-summary li strong{
+      color:#f9fafb;
+      font-weight:600;
+    }
+
+    @media (max-width: 900px) {
+      .ebitda-layout{
+        grid-template-columns:minmax(0, 1fr);
+      }
+    }
+
     @keyframes pulse{
       0%, 100%{opacity:1}
       50%{opacity:0.5}
@@ -1148,6 +1231,34 @@
           <img src="{{ stakeholder_map_chart }}" alt="Stakeholder Map" />
         </div>
         {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- EBITDA Waterfall Section -->
+    {% if ebitda_chart_path and ebitda %}
+    <section class="ebitda-section">
+      <div class="ebitda-section-header">
+        <h2>EBITDA Impact Waterfall</h2>
+        <p class="section-subtitle">
+          Financial impact of CX risks and AI stabilization on EBITDA
+        </p>
+      </div>
+      <div class="ebitda-layout">
+        <div class="ebitda-chart-wrapper">
+          <img src="{{ ebitda_chart_path }}" alt="EBITDA Waterfall Chart" class="ebitda-chart">
+        </div>
+        <div class="ebitda-summary">
+          <h3>EBITDA View</h3>
+          <ul>
+            <li><strong>Baseline EBITDA:</strong> ${{ ebitda.baseline_ebitda|default('0.0') }}M</li>
+            <li><strong>Revenue Leakage:</strong> -${{ ebitda.revenue_leakage|default('0.0') }}M</li>
+            <li><strong>Compliance Penalties:</strong> -${{ ebitda.compliance_penalties|default('0.0') }}M</li>
+            <li><strong>OpEx Inefficiency:</strong> -${{ ebitda.opex_inefficiency|default('0.0') }}M</li>
+            <li><strong>Automation Gains:</strong> +${{ ebitda.automation_gains|default('0.0') }}M</li>
+            <li><strong>Final EBITDA:</strong> ${{ ebitda.final_ebitda|default('0.0') }}M</li>
+          </ul>
+        </div>
       </div>
     </section>
     {% endif %}
