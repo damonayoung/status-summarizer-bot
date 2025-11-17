@@ -21,7 +21,7 @@ from ingestors.jira_ingestor import JiraIngestor
 from ingestors.slack_ingestor import SlackIngestor
 from ingestors.notes_ingestor import NotesIngestor
 from ingestors.csv_ingestor import CSVIngestor
-from charts import generate_risk_charts
+from charts import generate_risk_charts, generate_ebitda_waterfall_chart
 from context import build_ebitda_context
 
 
@@ -1559,7 +1559,7 @@ def markdown_to_html_sections(markdown_text: str) -> str:
     return '\n'.join(html_parts)
 
 
-def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None, risk_context: Optional[Dict[str, Any]] = None) -> str:
+def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None, risk_context: Optional[Dict[str, Any]] = None, ebitda_chart_path: Optional[str] = None) -> str:
     """Write summary to HTML file using template."""
     # Get output config from scenario or default
     if scenario and scenario in config.get("scenarios", {}):
@@ -1626,6 +1626,10 @@ def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None
             # Add EBITDA context
             if 'ebitda' in risk_context:
                 template_vars['ebitda'] = risk_context['ebitda']
+
+            # Add EBITDA chart path
+            if ebitda_chart_path:
+                template_vars['ebitda_chart_path'] = os.path.basename(ebitda_chart_path)
     else:
         # Default KPI values for standard reports
         template_vars.update({
@@ -1681,6 +1685,24 @@ def main(scenario: str = None):
         output_config = scenario_config.get("output", {}).get("formats", {})
         output_dir = output_config.get("markdown", {}).get("path", "output")
 
+        # Generate timestamp for consistent filenames
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        timestamp = today
+
+        # Generate EBITDA waterfall chart
+        ebitda_chart_path = None
+        if ebitda_context and ebitda_context.get('baseline_ebitda', 0) > 0:
+            ebitda_chart_filename = f"ebitda_waterfall_{timestamp}.png"
+            ebitda_chart_path = os.path.join(output_dir, ebitda_chart_filename)
+
+            try:
+                print("\n📊 Generating EBITDA waterfall chart...")
+                generate_ebitda_waterfall_chart(ebitda_context, ebitda_chart_path)
+                print(f"   ✓ Generated EBITDA chart: {ebitda_chart_filename}")
+            except Exception as e:
+                print(f"   ⚠ Failed to generate EBITDA waterfall chart: {e}")
+                ebitda_chart_path = None
+
         # Generate charts and attach paths to risk_context
         print("\n📊 Generating risk visualization charts...")
         chart_paths = generate_risk_charts(risk_context, output_dir)
@@ -1698,7 +1720,7 @@ def main(scenario: str = None):
         if md_path:
             outputs.append(f"Markdown: {md_path}")
 
-        html_path = write_html_output(summary, config, scenario, risk_context=risk_context)
+        html_path = write_html_output(summary, config, scenario, risk_context=risk_context, ebitda_chart_path=ebitda_chart_path)
         if html_path:
             outputs.append(f"HTML: {html_path}")
 
