@@ -1181,6 +1181,15 @@
       color:#f9fafb;
       font-weight:600;
     }
+    .ebitda-caption{
+      margin-top:12px;
+      font-size:0.9rem;
+      color:#4b5563;
+      text-align:center;
+      line-height:1.6;
+      font-style:italic;
+      padding:0 20px;
+    }
 
     @media (max-width: 900px) {
       .ebitda-layout{
@@ -1321,6 +1330,15 @@
       <div class="ebitda-layout">
         <div class="ebitda-chart-wrapper">
           <img src="{{ ebitda_chart_path }}" alt="EBITDA Waterfall Chart" class="ebitda-chart">
+          <p class="ebitda-caption">
+            {% if ebitda.baseline_ebitda and ebitda.final_ebitda %}
+              Despite EBITDA drag from revenue leakage, compliance exposure, and opex inefficiencies,
+              stabilization of CX and automation gains generate a net uplift of
+              ${{ ((ebitda.final_ebitda - ebitda.baseline_ebitda)) | round(1) }}M.
+            {% else %}
+              EBITDA waterfall shows the net financial impact of CX risks and AI stabilization efforts.
+            {% endif %}
+          </p>
         </div>
         <div class="ebitda-summary">
           <h3>EBITDA View</h3>
