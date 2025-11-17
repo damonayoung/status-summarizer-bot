@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% if scenario == 'sentient_cx_risk_radar' %}{{title}} — {{date}}{% else %}Executive Command Brief — {{date}}{% endif %}</title>
+  {% if scenario == 'sentient_cx_risk_radar' %}
   <style>
     :root{
       --bg:#0b1220;
@@ -16,11 +17,28 @@
       --warn:#f59e0b;
       --danger:#ef4444;
       --border:#e5e7eb;
-      {% if scenario == 'sentient_cx_risk_radar' %}
       --risk-bg:#7c2d12;
       --risk-accent:#fb923c;
-      {% endif %}
     }
+  </style>
+  {% else %}
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#ffffff;
+      --panel-alt:#f6f8fb;
+      --ink:#111827;
+      --mute:#6b7280;
+      --accent:#0ea5e9;
+      --ok:#10b981;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --border:#e5e7eb;
+    }
+  </style>
+  {% endif %}
+  <style>
+
     *{box-sizing:border-box}
     html,body{margin:0;padding:0}
     body{
@@ -29,13 +47,149 @@
     }
     .container{max-width:1180px;margin:0 auto;padding:28px}
 
-    /* Header */
-    .header{
-      {% if scenario == 'sentient_cx_risk_radar' %}
+    /* Consulting Report Header (CX Risk Radar) */
+    .report-header{
       background:linear-gradient(135deg, var(--risk-bg) 0%, #1e293b 100%);
-      {% else %}
+      color:#fff; padding:32px; border-radius:16px; margin-bottom:24px;
+      display:flex; justify-content:space-between; align-items:flex-start;
+    }
+    .report-header h1{margin:0 0 8px 0; font-size:28px; letter-spacing:.3px; font-weight:700}
+    .report-header .subtitle{margin:0; font-size:14px; color:rgba(255,255,255,.8); text-transform:uppercase; letter-spacing:.8px}
+    .report-header .meta{text-align:right; font-size:13px; opacity:.9}
+    .report-header .meta p{margin:4px 0}
+
+    /* KPI Strip (CX Risk Radar) */
+    .kpi-strip{
+      display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;
+    }
+    .kpi-card{
+      background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px;
+      box-shadow: 0 1px 3px rgba(17,24,39,0.05);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .kpi-card:hover{transform:translateY(-2px); box-shadow: 0 4px 12px rgba(17,24,39,0.1)}
+    .kpi-card .kpi-label{
+      font-size:11px; text-transform:uppercase; letter-spacing:.7px; color:var(--mute); font-weight:600; margin-bottom:8px;
+    }
+    .kpi-card .kpi-value{
+      font-size:32px; font-weight:700; color:var(--ink); line-height:1; margin-bottom:6px;
+    }
+    .kpi-card .kpi-caption{
+      font-size:12px; color:var(--mute); line-height:1.4;
+    }
+
+    /* Report Body (CX Risk Radar) - Main Container */
+    .report-body{
+      background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:40px;
+      box-shadow: 0 1px 3px rgba(17,24,39,0.05);
+    }
+
+    /* Markdown H1 - Major Section Headers (e.g., "Executive Summary", "CX Risk Heat Map") */
+    .report-body h1{
+      font-size:26px; font-weight:700; color:var(--ink);
+      margin:48px 0 20px 0; padding-bottom:12px;
+      border-bottom:3px solid var(--accent);
+      letter-spacing:-0.02em;
+    }
+    .report-body h1:first-child{margin-top:0}
+
+    /* Markdown H2 - Subsection Headers */
+    .report-body h2{
+      font-size:20px; font-weight:700; color:var(--ink);
+      margin:32px 0 16px 0; padding-bottom:8px;
+      border-bottom:2px solid var(--border);
+    }
+    .report-body h2:first-child{margin-top:0}
+
+    /* Markdown H3 - Minor Headers */
+    .report-body h3{
+      font-size:18px; font-weight:700; color:var(--ink);
+      margin:24px 0 12px 0;
+    }
+
+    /* Markdown H4 - Small Headers */
+    .report-body h4{
+      font-size:16px; font-weight:600; color:var(--ink);
+      margin:20px 0 10px 0;
+    }
+
+    /* Text Elements */
+    .report-body p{line-height:1.7; margin:12px 0; color:#374151}
+    .report-body ul, .report-body ol{margin:12px 0; padding-left:28px; line-height:1.7}
+    .report-body li{margin:8px 0; color:#374151}
+    .report-body strong{font-weight:600; color:var(--ink)}
+    .report-body em{font-style:italic; color:#4b5563}
+
+    /* Tables - Enhanced Readability */
+    .report-body table{
+      width:100%; border-collapse:collapse; margin:20px 0; font-size:14px;
+      border:1px solid var(--border); border-radius:8px; overflow:hidden;
+    }
+    .report-body table th{
+      background:#f9fafb; font-weight:600; font-size:12px; text-transform:uppercase;
+      letter-spacing:.6px; padding:14px 12px; text-align:left;
+      border-bottom:2px solid #d1d5db; color:#1f2937;
+    }
+    .report-body table td{
+      padding:12px 12px; border-bottom:1px solid #e5e7eb; vertical-align:top;
+      color:#374151;
+    }
+    .report-body table tbody tr:nth-child(even){
+      background:#fafafa;
+    }
+    .report-body table tbody tr:hover{
+      background:#f3f4f6;
+    }
+    .report-body table tbody tr:last-child td{
+      border-bottom:none;
+    }
+
+    /* Code & Pre */
+    .report-body code{
+      background:var(--panel-alt); padding:3px 6px; border-radius:4px; font-size:13px;
+      font-family:'SF Mono', Monaco, Consolas, monospace; color:#c7254e;
+      border:1px solid #e5e7eb;
+    }
+    .report-body pre{
+      background:#f9fafb; padding:16px; border-radius:8px; overflow-x:auto;
+      border:1px solid #e5e7eb; font-size:13px; line-height:1.6;
+    }
+    .report-body pre code{
+      background:transparent; padding:0; border:none; color:#1f2937;
+    }
+
+    /* Blockquotes */
+    .report-body blockquote{
+      border-left:4px solid var(--accent); padding:12px 20px; margin:20px 0;
+      background:#f0f9ff; border-radius:0 8px 8px 0; color:#1e3a8a;
+    }
+
+    /* Horizontal Rules */
+    .report-body hr{
+      border:none; border-top:2px solid var(--border); margin:32px 0;
+    }
+
+    /* Print Optimization */
+    @media print{
+      .report-header{
+        background:#fff !important; color:var(--ink) !important;
+        border:2px solid var(--border); page-break-after:avoid;
+      }
+      .report-header h1{color:var(--ink) !important}
+      .report-header .subtitle, .report-header .meta{color:var(--mute) !important}
+      .kpi-strip{page-break-inside:avoid}
+      .kpi-card{box-shadow:none; border:1px solid var(--border)}
+      .report-body{box-shadow:none; page-break-inside:avoid}
+      .report-body h1{page-break-after:avoid; border-bottom-color:#1f2937}
+      .report-body h2, .report-body h3{page-break-after:avoid}
+      .report-body table{page-break-inside:avoid; border:1px solid #000}
+      .report-body table th{background:#f3f4f6 !important; border-bottom:2px solid #000}
+      .report-body table td{border-bottom:1px solid #ccc}
+    }
+
+    /* Original Header (Default scenario) */
+    .header{
       background:var(--bg);
-      {% endif %}
       color:#fff; padding:32px; border-radius:16px; position:relative; overflow:hidden;
     }
     .header h1{margin:0 0 6px 0; font-size:28px; letter-spacing:.3px}
@@ -50,16 +204,6 @@
     .kpi .label{font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:rgba(255,255,255,.7)}
     .kpi .value{font-size:22px; font-weight:700; margin-top:6px}
     .kpi .trend{font-size:12px; opacity:.9; margin-top:2px}
-
-    /* CX Risk Radar specific header */
-    {% if scenario == 'sentient_cx_risk_radar' %}
-    .risk-posture{
-      margin-top:16px; padding:14px; background:rgba(255,255,255,.08);
-      border:1px solid rgba(255,255,255,.15); border-radius:12px;
-    }
-    .risk-posture .label{font-size:11px; text-transform:uppercase; letter-spacing:.7px; opacity:.8}
-    .risk-posture .value{font-size:16px; margin-top:6px; line-height:1.5}
-    {% endif %}
 
     /* Sections */
     .section{margin-top:26px}
@@ -91,7 +235,6 @@
     .badge.info{background:#eff6ff; color:var(--accent); border:1px solid #bfdbfe}
 
     /* CX Risk specific styling */
-    {% if scenario == 'sentient_cx_risk_radar' %}
     .risk-table td{font-size:13px}
     .risk-id{font-family:monospace; font-size:11px; color:var(--mute)}
     .severity-high{color:var(--danger); font-weight:700}
@@ -118,35 +261,1306 @@
     .action-item .day-label{font-weight:700; color:var(--accent); font-size:12px; text-transform:uppercase}
     .action-item .action-desc{margin:4px 0; line-height:1.5}
     .action-item .action-meta{font-size:12px; color:var(--mute); margin-top:4px}
-    {% endif %}
 
     .footer{margin:28px 0 8px; text-align:center; font-size:12px; color:var(--mute)}
+
+    /* Chart Section */
+    .chart-strip{
+      margin:32px 0 24px 0; padding-top:32px;
+      border-top:2px solid var(--border);
+    }
+    .chart-strip .section-title{
+      font-size:20px; font-weight:700; color:var(--ink);
+      margin:0 0 24px 0; padding-bottom:12px;
+      border-bottom:3px solid var(--accent);
+      letter-spacing:-0.01em;
+    }
+    .chart-grid{
+      display:grid;
+      grid-template-columns:repeat(2, 1fr);
+      gap:24px;
+    }
+    .chart-card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:20px;
+      box-shadow: 0 2px 4px rgba(17,24,39,0.06), 0 1px 2px rgba(17,24,39,0.03);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: fadein 0.4s ease both;
+    }
+    .chart-card:hover{
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(17,24,39,0.1), 0 2px 4px rgba(17,24,39,0.06);
+    }
+    .chart-card h3{
+      font-size:13px; font-weight:700; color:var(--mute);
+      margin:0 0 16px 0;
+      text-transform:uppercase;
+      letter-spacing:0.8px;
+      padding-bottom:12px;
+      border-bottom:1px solid var(--border);
+    }
+    .chart-card img{
+      width:100%; max-width:100%; height:auto;
+      border-radius:8px;
+      border:1px solid var(--border);
+      display:block;
+      background:#fafbfc;
+    }
+
+    /* Infographic Layout */
+    .infographic-layout{
+      display:flex;
+      flex-direction:column;
+      gap:24px;
+    }
+    .infographic-row{
+      display:grid;
+      grid-template-columns:minmax(0, 1.3fr) minmax(0, 1fr);
+      gap:20px;
+      align-items:flex-start;
+    }
+    .infographic-panel{
+      background:var(--panel-alt);
+      border-radius:10px;
+      padding:14px 16px;
+      border:1px solid rgba(0,0,0,0.05);
+    }
+    .infographic-panel-heading{
+      font-size:14px;
+      font-weight:600;
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:0.05em;
+      color:#555;
+    }
+
+    /* CX Risk Heat Map */
+    .risk-heatmap{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:8px;
+      font-size:13px;
+    }
+    .risk-heatmap thead th{
+      background:rgba(148, 163, 184, 0.18);
+      text-align:center;
+      padding:6px 8px;
+      font-weight:600;
+      color:#111827;
+    }
+    .risk-heatmap tbody th{
+      background:rgba(148, 163, 184, 0.10);
+      text-align:left;
+      padding:6px 8px;
+      font-weight:600;
+      color:#374151;
+      white-space:nowrap;
+    }
+    .risk-heatmap td{
+      text-align:center;
+      padding:6px 8px;
+      border:1px solid rgba(148, 163, 184, 0.35);
+      min-width:90px;
+    }
+    .risk-cell-critical{
+      background:rgba(220, 38, 38, 0.16);
+      color:#7f1d1d;
+      font-weight:600;
+    }
+    .risk-cell-high{
+      background:rgba(249, 115, 22, 0.18);
+      color:#7c2d12;
+      font-weight:600;
+    }
+    .risk-cell-medium{
+      background:rgba(250, 204, 21, 0.18);
+      color:#713f12;
+    }
+    .risk-cell-low{
+      background:rgba(22, 163, 74, 0.15);
+      color:#14532d;
+    }
+
+    /* Executive Summary */
+    .exec-summary{
+      margin-top:18px;
+      margin-bottom:20px;
+    }
+    .exec-summary-grid{
+      display:grid;
+      grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr);
+      gap:18px;
+      align-items:flex-start;
+    }
+    .exec-summary-main p{
+      margin:0 0 6px;
+      font-size:13px;
+      color:#111827;
+    }
+    .exec-summary-top5{
+      background:var(--panel-alt);
+      border-radius:10px;
+      padding:10px 12px;
+      border:1px solid rgba(148, 163, 184, 0.35);
+    }
+    .exec-top5-heading{
+      margin:0 0 6px;
+      font-size:13px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+      color:#374151;
+    }
+    .exec-top5-list{
+      margin:0;
+      padding-left:18px;
+      font-size:12px;
+      color:#111827;
+    }
+    .exec-top5-list li{
+      margin-bottom:4px;
+    }
+
+    /* CX KPI Tiles */
+    .cx-kpis{
+      margin-top:18px;
+    }
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+      gap:12px;
+    }
+    .kpi-card{
+      background:var(--panel-alt);
+      border-radius:10px;
+      padding:10px 12px;
+      border:1px solid rgba(148, 163, 184, 0.45);
+    }
+    .kpi-card.kpi-critical{
+      border-color:rgba(220, 38, 38, 0.55);
+      box-shadow:0 0 0 1px rgba(220, 38, 38, 0.15);
+    }
+    .kpi-label{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#6b7280;
+      margin-bottom:2px;
+    }
+    .kpi-value{
+      font-size:18px;
+      font-weight:600;
+      color:#111827;
+    }
+    .kpi-sub{
+      margin-top:2px;
+      font-size:12px;
+      color:#4b5563;
+    }
+
+    /* CX Status Banner */
+    .cx-status-banner{
+      margin-top:18px;
+      margin-bottom:18px;
+      padding:10px 14px;
+      border-radius:10px;
+      background:rgba(220, 38, 38, 0.04);
+      border:1px solid rgba(220, 38, 38, 0.3);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .cx-status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:3px 9px;
+      border-radius:999px;
+      background:#fee2e2;
+      color:#7f1d1d;
+      font-size:11px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+    }
+    .cx-status-dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:#dc2626;
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.35);
+    }
+    .cx-status-text{
+      margin:0;
+      font-size:13px;
+      color:#111827;
+    }
+
+    /* Section Separators */
+    .section-title{
+      margin:18px 0 10px;
+      font-size:14px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#4b5563;
+    }
+    .report-body section + section{
+      border-top:1px dashed rgba(148, 163, 184, 0.6);
+      padding-top:14px;
+      margin-top:10px;
+    }
+
+    /* Badges */
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:500;
+      border:1px solid transparent;
+    }
+    .badge-danger{
+      background:#fee2e2;
+      color:#b91c1c;
+      border-color:#fecaca;
+    }
+    .badge-warning{
+      background:#fef3c7;
+      color:#92400e;
+      border-color:#fde68a;
+    }
+    .badge-success{
+      background:#dcfce7;
+      color:#166534;
+      border-color:#bbf7d0;
+    }
+    .status-overdue{
+      font-size:11px;
+      color:#b91c1c;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+    }
+
+    /* Risk Concentration Section */
+    .risk-concentration{
+      margin-top:22px;
+      margin-bottom:24px;
+    }
+    .risk-concentration-grid{
+      display:grid;
+      grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr);
+      gap:18px;
+      align-items:flex-start;
+    }
+    .heatmap-footnote{
+      margin-top:6px;
+      font-size:11px;
+      color:#6b7280;
+    }
+    .risk-concentration-side{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+    .card.compact{
+      background:var(--panel-alt);
+      border-radius:10px;
+      padding:12px 14px;
+      border:1px solid rgba(148, 163, 184, 0.35);
+    }
+    .risk-concentration-side .card.compact{
+      padding:10px 12px;
+    }
+    .card.compact h3{
+      margin:0 0 10px;
+      font-size:13px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+      color:#374151;
+    }
+    .exposure-total{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      padding:8px 0;
+      border-bottom:1px solid rgba(148, 163, 184, 0.25);
+      margin-bottom:6px;
+    }
+    .exposure-total .label{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#6b7280;
+    }
+    .exposure-total .value{
+      font-size:16px;
+      font-weight:600;
+      color:#111827;
+    }
+    .exposure-list{
+      list-style:none;
+      margin:0;
+      padding:0;
+      font-size:12px;
+    }
+    .exposure-list li{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:6px;
+      padding:3px 0;
+    }
+    .exposure-list .right{
+      font-variant-numeric:tabular-nums;
+      color:#111827;
+    }
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      margin-right:6px;
+    }
+    .dot-critical{
+      background:#dc2626;
+    }
+    .dot-medium{
+      background:#f59e0b;
+    }
+    .dot-low{
+      background:#22c55e;
+    }
+    .insight-chip-row{
+      margin-top:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .insight-chip{
+      font-size:12px;
+      padding:6px 8px;
+      border-radius:999px;
+      background:rgba(15, 23, 42, 0.03);
+      border:1px dashed rgba(148, 163, 184, 0.7);
+      color:#111827;
+    }
+
+    /* CX Trajectory Section */
+    .trajectory-section{
+      margin-top:24px;
+      margin-bottom:24px;
+    }
+    .trajectory-grid{
+      display:grid;
+      grid-template-columns:minmax(0, 1.5fr) minmax(0, 1.2fr);
+      gap:18px;
+      align-items:stretch;
+    }
+    .trajectory-chart.card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:18px;
+      box-shadow: 0 1px 3px rgba(17,24,39,0.05);
+    }
+    .trajectory-chart.card h3{
+      margin:0 0 14px;
+      font-size:14px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+      color:#374151;
+    }
+    .trajectory-chart.card img,
+    .trajectory-chart img{
+      width:100%;
+      height:auto;
+      border-radius:8px;
+      border:1px solid var(--border);
+      display:block;
+      background:#fafbfc;
+      margin-top:6px;
+    }
+    .placeholder-text{
+      padding:40px 20px;
+      text-align:center;
+      font-size:12px;
+      color:var(--mute);
+      font-style:italic;
+    }
+    .trajectory-metrics{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .metric-tile{
+      background:var(--panel-alt);
+      border:1px solid rgba(148, 163, 184, 0.35);
+      border-radius:10px;
+      padding:12px 14px;
+    }
+    .metric-label{
+      font-size:10px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#6b7280;
+      margin-bottom:4px;
+    }
+    .metric-main{
+      display:flex;
+      align-items:baseline;
+      gap:6px;
+      margin-bottom:4px;
+    }
+    .metric-value{
+      font-size:26px;
+      font-weight:700;
+      color:var(--ink);
+      font-variant-numeric:tabular-nums;
+    }
+    .metric-delta{
+      font-size:11px;
+      font-weight:600;
+      padding:3px 6px;
+      border-radius:4px;
+    }
+    .metric-delta.metric-down{
+      background:rgba(220, 38, 38, 0.1);
+      color:#b91c1c;
+    }
+    .metric-delta.metric-up{
+      background:rgba(220, 38, 38, 0.1);
+      color:#b91c1c;
+    }
+    .metric-caption{
+      font-size:10px;
+      line-height:1.4;
+      color:#6b7280;
+    }
+
+    /* Top 3 CX Risks Section */
+    .top-risks-section{
+      margin-top:24px;
+      margin-bottom:24px;
+    }
+    .risk-card-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+      gap:16px;
+    }
+    .risk-card.card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      box-shadow: 0 1px 3px rgba(17,24,39,0.05);
+    }
+    .risk-card-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      margin-bottom:14px;
+      padding-bottom:12px;
+      border-bottom:1px solid var(--border);
+    }
+    .risk-id{
+      font-size:10px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--mute);
+      margin-bottom:4px;
+    }
+    .risk-title{
+      font-size:14px;
+      font-weight:600;
+      color:var(--ink);
+      margin:0;
+      line-height:1.3;
+    }
+    .risk-card-body{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .risk-exposure-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+    }
+    .risk-exposure-row .label{
+      font-size:11px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--mute);
+    }
+    .risk-exposure-row .value{
+      font-size:20px;
+      font-weight:700;
+      color:var(--danger);
+    }
+    .risk-exposure-bar{
+      width:100%;
+      height:6px;
+      background:rgba(148, 163, 184, 0.15);
+      border-radius:999px;
+      overflow:hidden;
+    }
+    .risk-exposure-bar .bar-fill{
+      height:100%;
+      background:linear-gradient(90deg, #f97316, #dc2626);
+      border-radius:999px;
+    }
+    .risk-exposure-caption{
+      font-size:10px;
+      color:var(--mute);
+      font-style:italic;
+    }
+    .risk-meta{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:8px;
+      margin:0;
+    }
+    .risk-meta > div{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .risk-meta dt{
+      font-size:10px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+      color:var(--mute);
+    }
+    .risk-meta dd{
+      font-size:12px;
+      font-weight:500;
+      color:var(--ink);
+      margin:0;
+    }
+    .risk-plan{
+      padding-top:8px;
+      border-top:1px dashed rgba(148, 163, 184, 0.4);
+    }
+    .risk-plan-label{
+      font-size:10px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--mute);
+      margin-bottom:4px;
+    }
+    .risk-plan p{
+      font-size:12px;
+      line-height:1.4;
+      color:#374151;
+      margin:0;
+    }
+
+    /* Stakeholder Landscape Section */
+    .stakeholder-section{
+      margin-top:24px;
+      margin-bottom:24px;
+    }
+    .stakeholder-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));
+      gap:16px;
+      margin-bottom:12px;
+    }
+    .stakeholder-quadrant.card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:14px;
+      box-shadow: 0 1px 3px rgba(17,24,39,0.05);
+    }
+    .quadrant-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:10px;
+      padding-bottom:8px;
+      border-bottom:1px solid var(--border);
+    }
+    .quadrant-label{
+      font-size:11px;
+      font-weight:600;
+      color:var(--ink);
+    }
+    .quadrant-tag{
+      font-size:9px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+      padding:3px 6px;
+      border-radius:4px;
+      background:rgba(16, 185, 129, 0.1);
+      color:#047857;
+    }
+    .quadrant-tag-danger{
+      background:rgba(220, 38, 38, 0.1);
+      color:#b91c1c;
+    }
+    .quadrant-tag-muted{
+      background:rgba(148, 163, 184, 0.1);
+      color:#475569;
+    }
+    .stakeholder-list{
+      list-style:none;
+      margin:0;
+      padding:0;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .stakeholder-list li{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      padding:3px 0;
+      font-size:11px;
+    }
+    .stakeholder-list .name{
+      font-weight:600;
+      color:var(--ink);
+    }
+    .stakeholder-list .role{
+      font-size:10px;
+      color:var(--mute);
+    }
+    .stakeholder-note{
+      font-size:11px;
+      line-height:1.5;
+      color:#374151;
+      font-style:italic;
+      margin:12px 0 0;
+      padding:10px 12px;
+      background:rgba(59, 130, 246, 0.05);
+      border-left:3px solid var(--accent);
+      border-radius:0 6px 6px 0;
+    }
+
+    /* 7-Day Execution Timeline Section */
+    .timeline-section{
+      margin-top:24px;
+      margin-bottom:24px;
+    }
+    .timeline{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+    .timeline-item{
+      display:flex;
+      gap:14px;
+      position:relative;
+      padding-left:18px;
+      border-left:2px solid rgba(148, 163, 184, 0.7);
+    }
+    .timeline-item:last-child{
+      border-left-color:transparent;
+    }
+    .timeline-marker{
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      background:#3b82f6;
+      border:2px solid #fff;
+      box-shadow:0 0 0 2px #3b82f6;
+      margin-top:2px;
+      position:absolute;
+      left:-6px;
+      top:0;
+      z-index:1;
+      flex-shrink:0;
+    }
+    .timeline-content{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:10px 12px;
+      box-shadow: 0 1px 2px rgba(17,24,39,0.04);
+      flex:1;
+    }
+    .timeline-label{
+      font-size:10px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--mute);
+      margin-bottom:4px;
+    }
+    .timeline-status{
+      margin-bottom:6px;
+    }
+    .timeline-body{
+      list-style:disc;
+      margin:0;
+      padding-left:18px;
+      font-size:11px;
+      line-height:1.5;
+      color:#374151;
+    }
+    .timeline-body li{
+      margin:2px 0;
+    }
+    .badge-default{
+      background:rgba(148, 163, 184, 0.1);
+      color:#475569;
+      border-color:rgba(148, 163, 184, 0.3);
+    }
+
+    /* Analyst Notes Section */
+    .analyst-notes{
+      margin-top:28px;
+      border-top:1px dashed rgba(148, 163, 184, 0.5);
+      padding-top:10px;
+    }
+    .analyst-notes > details > summary{
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      list-style:none;
+    }
+    .analyst-notes-body{
+      margin-top:6px;
+      font-size:12px;
+    }
+
+    @keyframes pulse{
+      0%, 100%{opacity:1}
+      50%{opacity:0.5}
+    }
 
     @keyframes fadein{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
     @keyframes rise{to{opacity:1; transform:none}}
 
+    @media (max-width: 960px) {
+      .risk-concentration-grid { grid-template-columns: minmax(0, 1fr); }
+      .trajectory-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @media (max-width: 900px) {
+      .exec-summary-grid { grid-template-columns: minmax(0, 1fr); }
+      .risk-card-grid { grid-template-columns: 1fr; }
+      .stakeholder-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .kpi-grid{
+        grid-template-columns:minmax(0, 1fr);
+      }
+    }
+
     @media (max-width: 768px) {
       .container{padding:16px}
       .kpis{grid-template-columns: 1fr}
+      .kpi-strip{grid-template-columns: 1fr}
       .grid-2, .twocol{grid-template-columns: 1fr}
+      .report-header{flex-direction:column; gap:16px}
+      .report-header .meta{text-align:left}
+      .report-body{padding:20px}
+      .chart-grid{grid-template-columns:1fr}
+      .infographic-row{grid-template-columns:1fr}
+      .exec-summary-grid{grid-template-columns:1fr}
+      .exec-summary{padding:20px}
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- HERO -->
-    <section class="header">
-      {% if scenario == 'sentient_cx_risk_radar' %}
-      <h1>{{title}}</h1>
-      <p>Risk Assessment Report — {{date}}</p>
-      <p style="font-size:13px; margin-top:8px; opacity:.85">Sources: Jira · Wrike · Slack · Gmail · HubSpot · Confluence · Calendar · Risk Register</p>
-      {% if risk_posture %}
-      <div class="risk-posture">
-        <div class="label">CX Risk Posture</div>
-        <div class="value">{{risk_posture}}</div>
+  <main class="container">
+    {% if scenario == 'sentient_cx_risk_radar' %}
+    <!-- CX Risk Radar Consulting Layout -->
+    <header class="report-header">
+      <div>
+        <h1>{{title|default('Sentient CX Risk Radar – Aurora National Bank')}}</h1>
+        <p class="subtitle">Consulting-grade CX risk briefing</p>
       </div>
-      {% endif %}
-      {% else %}
+      <div class="meta">
+        <p><strong>Date:</strong> {{date}}</p>
+        <p><strong>Scenario:</strong> {{scenario|default('sentient_cx_risk_radar')}}</p>
+      </div>
+    </header>
+
+    <section class="kpi-strip">
+      <div class="kpi-card">
+        <div class="kpi-label">CX Sentiment Index</div>
+        <div class="kpi-value">{{cx_index|default('61')}}</div>
+        <div class="kpi-caption">{{cx_index_trend|default('↓ -25% from baseline (critical)')}}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Exposure</div>
+        <div class="kpi-value">{{total_exposure|default('$8.9M')}}</div>
+        <div class="kpi-caption">Revenue + regulatory at risk</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Critical Risks</div>
+        <div class="kpi-value">{{critical_risks_count|default('2')}}</div>
+        <div class="kpi-caption">High severity, urgent mitigation required</div>
+      </div>
+    </section>
+
+    <!-- Visual Risk Snapshot (Charts) -->
+    {% if sentiment_trend_chart or complaints_escalations_chart or risk_exposure_chart or risk_heatmap_chart or stakeholder_map_chart %}
+    <section class="chart-strip">
+      <h2 class="section-title">Visual Risk Snapshot</h2>
+      <div class="chart-grid">
+        {% if sentiment_trend_chart %}
+        <div class="chart-card">
+          <h3>CX Sentiment Trend</h3>
+          <img src="{{ sentiment_trend_chart }}" alt="CX Sentiment Trend" />
+        </div>
+        {% endif %}
+
+        {% if complaints_escalations_chart %}
+        <div class="chart-card">
+          <h3>Complaints & Escalations</h3>
+          <img src="{{ complaints_escalations_chart }}" alt="Complaints and Escalations" />
+        </div>
+        {% endif %}
+
+        {% if risk_exposure_chart %}
+        <div class="chart-card">
+          <h3>Top Financial Exposures</h3>
+          <img src="{{ risk_exposure_chart }}" alt="Top Risk Exposures" />
+        </div>
+        {% endif %}
+
+        {% if risk_heatmap_chart %}
+        <div class="chart-card">
+          <h3>Impact × Likelihood Heatmap</h3>
+          <img src="{{ risk_heatmap_chart }}" alt="Risk Heatmap" />
+        </div>
+        {% endif %}
+
+        {% if stakeholder_map_chart %}
+        <div class="chart-card">
+          <h3>Stakeholder Influence × Support</h3>
+          <img src="{{ stakeholder_map_chart }}" alt="Stakeholder Map" />
+        </div>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- CX Status Banner -->
+    <section class="cx-status-banner">
+      <div class="cx-status-pill cx-status-critical">
+        <span class="cx-status-dot"></span>
+        <span class="cx-status-label">CX Status: Elevated</span>
+      </div>
+      <p class="cx-status-text">
+        Immediate action required on 2 critical risks impacting customer experience and regulatory exposure.
+      </p>
+    </section>
+
+    <!-- Executive Summary -->
+    <section class="exec-summary">
+      <h2 class="section-title">Executive Summary</h2>
+      <div class="exec-summary-grid">
+        <div class="exec-summary-main">
+          <p><strong>Situation:</strong> CX health is elevated with two critical risks driving regulatory and customer experience exposure.</p>
+          <p><strong>Why it matters:</strong> These risks concentrate over $X.XM in potential financial impact and threaten trust in AI-driven CX journeys.</p>
+          <p><strong>Now:</strong> Sentiment is declining, escalations are rising, and a key compliance stakeholder is blocking a critical mitigation.</p>
+          <p><strong>Next 7 days:</strong> Focus on stabilizing latency, reducing hallucinations, and unblocking compliance sign-off.</p>
+        </div>
+        <div class="exec-summary-top5">
+          <h3 class="exec-top5-heading">Top 5 Things You Must Know</h3>
+          <ol class="exec-top5-list">
+            <li>Two critical risks drive the majority of financial and CX exposure.</li>
+            <li>Sentiment has fallen for several weeks, with escalations trending upward.</li>
+            <li>Regulatory non-compliance is the single largest financial risk driver.</li>
+            <li>One high-influence stakeholder remains resistant and is blocking key mitigations.</li>
+            <li>The next 7 days are decisive for stabilizing CX and reducing regulatory exposure.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- CX KPI Tiles -->
+    <section class="cx-kpis">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-critical">
+          <div class="kpi-label">Overall CX Status</div>
+          <div class="kpi-value">
+            {{ cx_status_label|default('Elevated') }}
+          </div>
+          <div class="kpi-sub">
+            {{ cx_status_subtitle|default('2 critical risks require immediate action') }}
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Sentiment Index</div>
+          <div class="kpi-value">
+            {{ sentiment_index_current|default('61') }}
+          </div>
+          <div class="kpi-sub">
+            {{ sentiment_delta_text|default('▼ 19% vs baseline 75') }}
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Weekly Escalations</div>
+          <div class="kpi-value">
+            {{ escalations_current|default('11') }}
+          </div>
+          <div class="kpi-sub">
+            {{ escalations_delta_text|default('+22.2% week-over-week') }}
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Top Exposure</div>
+          <div class="kpi-value">
+            {{ top_exposure_label|default('GDPR/CCPA non-compliance') }}
+          </div>
+          <div class="kpi-sub">
+            {{ top_exposure_comment|default('Regulatory + reputational risk') }}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Risk Concentration -->
+    <section class="risk-concentration">
+      <h2 class="section-title">Risk Concentration</h2>
+      <div class="risk-concentration-grid">
+        <!-- Left: Impact × Likelihood Heatmap -->
+        <div class="risk-concentration-main">
+          <table class="risk-heatmap">
+            <thead>
+              <tr>
+                <th scope="col">Impact / Likelihood</th>
+                <th scope="col">Low</th>
+                <th scope="col">Medium</th>
+                <th scope="col">High</th>
+                <th scope="col">Critical</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Low</th>
+                <td class="risk-cell-low">{{ risk_heatmap.low_low|default('$0M') }}</td>
+                <td class="risk-cell-medium">{{ risk_heatmap.low_med|default('$0M') }}</td>
+                <td class="risk-cell-high">{{ risk_heatmap.low_high|default('$0M') }}</td>
+                <td class="risk-cell-critical">{{ risk_heatmap.low_crit|default('$0M') }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Medium</th>
+                <td class="risk-cell-low">{{ risk_heatmap.med_low|default('$0M') }}</td>
+                <td class="risk-cell-medium">{{ risk_heatmap.med_med|default('$0M') }}</td>
+                <td class="risk-cell-high">{{ risk_heatmap.med_high|default('$0M') }}</td>
+                <td class="risk-cell-critical">{{ risk_heatmap.med_crit|default('$0M') }}</td>
+              </tr>
+              <tr>
+                <th scope="row">High</th>
+                <td class="risk-cell-low">{{ risk_heatmap.high_low|default('$0M') }}</td>
+                <td class="risk-cell-medium">{{ risk_heatmap.high_med|default('$0M') }}</td>
+                <td class="risk-cell-high">{{ risk_heatmap.high_high|default('$0M') }}</td>
+                <td class="risk-cell-critical">{{ risk_heatmap.high_crit|default('$0M') }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Critical</th>
+                <td class="risk-cell-low">{{ risk_heatmap.crit_low|default('$0M') }}</td>
+                <td class="risk-cell-medium">{{ risk_heatmap.crit_med|default('$0M') }}</td>
+                <td class="risk-cell-high">{{ risk_heatmap.crit_high|default('$0M') }}</td>
+                <td class="risk-cell-critical">{{ risk_heatmap.crit_crit|default('$0M') }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="heatmap-footnote">
+            Exposure values based on current CX risk register; darker cells indicate higher concentration of financial exposure and risk count.
+          </p>
+        </div>
+
+        <!-- Right: Exposure breakdown panel -->
+        <aside class="risk-concentration-side">
+          <div class="card compact exposure-card">
+            <h3>Exposure Breakdown</h3>
+            <div class="exposure-total">
+              <span class="label">Total mapped exposure</span>
+              <span class="value">
+                ${{ total_exposure_millions|default('0.0') }}M
+              </span>
+            </div>
+            <ul class="exposure-list">
+              <li>
+                <span class="dot dot-critical"></span>
+                High &amp; Critical impact buckets
+                <span class="right">
+                  {{ high_crit_share|default('~70%') }}
+                </span>
+              </li>
+              <li>
+                <span class="dot dot-medium"></span>
+                Medium impact buckets
+                <span class="right">
+                  {{ med_share|default('~20%') }}
+                </span>
+              </li>
+              <li>
+                <span class="dot dot-low"></span>
+                Low impact buckets
+                <span class="right">
+                  {{ low_share|default('~10%') }}
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="insight-chip-row">
+            <div class="insight-chip">
+              {{ heatmap_insight_1|default('Highest exposure sits in High impact / High likelihood.') }}
+            </div>
+            <div class="insight-chip">
+              {{ heatmap_insight_2|default('Most risks by count are Medium impact / Medium likelihood.') }}
+            </div>
+            <div class="insight-chip">
+              {{ heatmap_insight_3|default('Majority of exposure is concentrated in High & Critical buckets.') }}
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- CX Trajectory -->
+    <section class="trajectory-section">
+      <h2 class="section-title">CX Trajectory</h2>
+      <div class="trajectory-grid">
+        <!-- Left: Sentiment Trend Chart -->
+        <div class="trajectory-chart card">
+          <h3>CX Sentiment & Trust Index</h3>
+          {% if sentiment_trend_chart %}
+          <img src="{{ sentiment_trend_chart }}" alt="CX Sentiment Trend" />
+          {% else %}
+          <p class="placeholder-text">Sentiment chart will appear here once trend data is available.</p>
+          {% endif %}
+        </div>
+
+        <!-- Right: Mini Metrics Panel -->
+        <div class="trajectory-metrics">
+          <div class="metric-tile">
+            <div class="metric-label">Current Sentiment</div>
+            <div class="metric-main">
+              <span class="metric-value">{{ sentiment_index_current|default('61') }}</span>
+              <span class="metric-delta metric-down">
+                {{ sentiment_delta_wow|default('-4.7% WoW') }}
+              </span>
+            </div>
+            <div class="metric-caption">
+              {{ sentiment_comment|default('Below baseline and trending downward for 3 consecutive periods.') }}
+            </div>
+          </div>
+
+          <div class="metric-tile">
+            <div class="metric-label">Escalations</div>
+            <div class="metric-main">
+              <span class="metric-value">{{ escalations_current|default('11') }}</span>
+              <span class="metric-delta metric-up">
+                {{ escalations_delta_wow|default('+22.2% WoW') }}
+              </span>
+            </div>
+            <div class="metric-caption">
+              {{ escalations_comment|default('Spike driven by bot misrouting and inconsistent responses.') }}
+            </div>
+          </div>
+
+          <div class="metric-tile">
+            <div class="metric-label">Trust Index</div>
+            <div class="metric-main">
+              <span class="metric-value">{{ trust_index_current|default('68') }}</span>
+              <span class="metric-delta metric-down">
+                {{ trust_delta_wow|default('-4.2% WoW') }}
+              </span>
+            </div>
+            <div class="metric-caption">
+              {{ trust_comment|default('Customers report slower, less predictable experiences vs live agents.') }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top 3 CX Risks -->
+    <section class="top-risks-section">
+      <h2 class="section-title">Top 3 CX Risks</h2>
+      <div class="risk-card-grid">
+        {% for risk in top_risks %}
+        <article class="risk-card card">
+          <header class="risk-card-header">
+            <div>
+              <div class="risk-id">{{ risk.id }}</div>
+              <h3 class="risk-title">{{ risk.title }}</h3>
+            </div>
+            <span class="badge
+              {% if risk.severity == 'Critical' %}badge-danger{% elif risk.severity == 'High' %}badge-warning{% else %}badge-default{% endif %}">
+              {{ risk.severity }}
+            </span>
+          </header>
+
+          <div class="risk-card-body">
+            <div class="risk-exposure-row">
+              <span class="label">Exposure</span>
+              <span class="value">
+                ${{ risk.exposure_millions|default('0.0') }}M
+              </span>
+            </div>
+            {% if risk.exposure_share %}
+            <div class="risk-exposure-bar">
+              <div class="bar-fill" style="width: {{ risk.exposure_share }}%;"></div>
+            </div>
+            <div class="risk-exposure-caption">
+              ~{{ risk.exposure_share }}% of total mapped exposure
+            </div>
+            {% endif %}
+
+            <dl class="risk-meta">
+              <div>
+                <dt>Owner</dt>
+                <dd>{{ risk.owner|default('Unassigned') }}</dd>
+              </div>
+              <div>
+                <dt>Target Date</dt>
+                <dd>{{ risk.target_date|default('TBD') }}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{{ risk.status|default('At Risk') }}</dd>
+              </div>
+            </dl>
+
+            <div class="risk-plan">
+              <div class="risk-plan-label">Mitigation Focus</div>
+              <p>{{ risk.plan_summary|default('Stabilize CX touchpoints, tighten guardrails, and finalize compliance sign-off.') }}</p>
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Stakeholder Landscape -->
+    <section class="stakeholder-section">
+      <h2 class="section-title">Stakeholder Landscape</h2>
+      <div class="stakeholder-grid">
+        <div class="stakeholder-quadrant card">
+          <div class="quadrant-header">
+            <span class="quadrant-label">High Influence · High Support</span>
+            <span class="quadrant-tag">Champions</span>
+          </div>
+          <ul class="stakeholder-list">
+            {% for s in stakeholders_champions %}
+            <li>
+              <span class="name">{{ s.name }}</span>
+              <span class="role">{{ s.role }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="stakeholder-quadrant card">
+          <div class="quadrant-header">
+            <span class="quadrant-label">High Influence · Low Support</span>
+            <span class="quadrant-tag quadrant-tag-danger">Blockers</span>
+          </div>
+          <ul class="stakeholder-list">
+            {% for s in stakeholders_blockers %}
+            <li>
+              <span class="name">{{ s.name }}</span>
+              <span class="role">{{ s.role }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="stakeholder-quadrant card">
+          <div class="quadrant-header">
+            <span class="quadrant-label">Low Influence · High Support</span>
+            <span class="quadrant-tag quadrant-tag-muted">Advocates</span>
+          </div>
+          <ul class="stakeholder-list">
+            {% for s in stakeholders_advocates %}
+            <li>
+              <span class="name">{{ s.name }}</span>
+              <span class="role">{{ s.role }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="stakeholder-quadrant card">
+          <div class="quadrant-header">
+            <span class="quadrant-label">Low Influence · Low Support</span>
+            <span class="quadrant-tag quadrant-tag-muted">Observers</span>
+          </div>
+          <ul class="stakeholder-list">
+            {% for s in stakeholders_observers %}
+            <li>
+              <span class="name">{{ s.name }}</span>
+              <span class="role">{{ s.role }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <p class="stakeholder-note">
+        Focus the next 7 days on converting key blockers towards neutral or supportive, while keeping champions actively sponsoring the CX program.
+      </p>
+    </section>
+
+    <!-- 7-Day Execution Timeline -->
+    <section class="timeline-section">
+      <h2 class="section-title">7-Day Execution Timeline</h2>
+      <div class="timeline">
+        {% for phase in timeline_phases %}
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-label">
+              {{ phase.label|default('Days 1–2') }}
+            </div>
+            <div class="timeline-status">
+              <span class="badge
+                {% if phase.status == 'At Risk' %}badge-danger{% elif phase.status == 'In Progress' %}badge-warning{% else %}badge-success{% endif %}">
+                {{ phase.status|default('Planned') }}
+              </span>
+            </div>
+            <ul class="timeline-body">
+              {% for item in phase.actions %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Analyst Notes & Detail -->
+    <section class="analyst-notes">
+      <details open>
+        <summary>Analyst Notes &amp; Detail</summary>
+        <div class="analyst-notes-body">
+          {{content|safe}}
+        </div>
+      </details>
+    </section>
+
+    {% else %}
+    <!-- Original Executive Command Brief Layout -->
+    <section class="header">
       <h1>Executive Command Brief — {{date}}</h1>
       <p>Automatically generated from delivery signals (Notes · Jira · Slack)</p>
       <div class="kpis">
@@ -166,21 +1580,13 @@
           <div class="trend">{{kpi_cost_trend|default('Infra ↑')}}</div>
         </div>
       </div>
-      {% endif %}
     </section>
 
-    <!-- CONTENT -->
     <section class="section">
-      {% if scenario == 'sentient_cx_risk_radar' %}
-      <h2>CX Risk Analysis</h2>
-      {% else %}
       <h2>Tier 1 — What's happening?</h2>
-      {% endif %}
-
-      <!-- Content will be inserted here by the markdown renderer -->
-      {{content}}
-
+      {{content|safe}}
     </section>
+    {% endif %}
 
     <div class="footer">
       {% if scenario == 'sentient_cx_risk_radar' %}
@@ -189,6 +1595,6 @@
       Powered by OpenAI GPT-4 | Status Summarizer Bot v2.0 | Generated: {{timestamp}}
       {% endif %}
     </div>
-  </div>
+  </main>
 </body>
 </html>

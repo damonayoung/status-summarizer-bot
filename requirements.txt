@@ -5,6 +5,10 @@ PyYAML>=6.0.0
 pydantic>=2.9.0
 jinja2>=3.1.4
 requests>=2.32.3
+pandas>=2.0.0
+
+# Visualization
+matplotlib>=3.8.0
 
 # Optional: For future enhancements
 # requests>=2.32.0  # For webhook integrations

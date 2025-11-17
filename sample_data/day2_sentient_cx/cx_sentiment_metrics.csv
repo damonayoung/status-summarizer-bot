@@ -1,4 +1,6 @@
 ﻿week_start,avg_sentiment_score,complaints,escalations,latency_ms,blocked_tickets,trust_index,notes
-10/13/25,82,12,2,180,1,91,Stable
-10/20/25,74,19,5,225,3,84,Declining
-10/27/25,66,28,8,279,7,72,Significant deterioration
+2025-10-13,82,12,2,180,1,91,"Baseline week: stable performance and high trust."
+2025-10-20,74,19,5,225,3,84,"Latency increases and first signs of model instability."
+2025-10-27,68,26,7,260,5,77,"More escalations; customers begin to reference inconsistent answers."
+2025-11-03,64,33,9,285,8,71,"Sentiment deteriorates; risk of churn emerging in key accounts."
+2025-11-10,61,39,11,305,10,68,"Trust erosion visible; regulatory and reputational risk increasing."

@@ -28,7 +28,7 @@ class CSVIngestor(BaseIngestor):
         headers = []
         rows = []
 
-        with open(self.path, "r", encoding="utf-8") as f:
+        with open(self.path, "r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             headers = reader.fieldnames or []
             rows = list(reader)

@@ -1,4 +1,7 @@
-RiskID,Title,Severity,Strategy,Plan,Owner,TargetDate
-R-12,Auto-reply hallucination risk,High,Mitigate,Enable conservative mode; human-in-the-loop for disputes,Priya Natarajan,2025-11-18
-R-19,GDPR/CCPA non-compliance,High,Block,Gate features behind policy check + audit trail,Renée Park,2025-11-16
-R-24,Model latency > SLA,Medium,Mitigate,Autoscale inference; rollback model v0.12 if p95>800ms,Miguel Alvarez,2025-11-15
+RiskID,Title,Severity,Strategy,Plan,Owner,TargetDate,ImpactLevel,LikelihoodLevel
+R1,GDPR/CCPA non-compliance,Critical,Reduce,"Implement unified consent management, tighten data retention rules, and run weekly audits on CX data pipelines.",Chief Compliance Officer,11/30/25,High,High
+R2,Model latency spikes in production,High,Reduce,"Deploy autoscaling for inference, add latency SLOs, and create auto-rollbacks on regression.",Head of Platform Engineering,11/22/25,High,Medium
+R3,Bot misrouting high-value CX cases,High,Reduce,"Refine routing logic with human-in-the-loop review, add guardrails for VIP accounts, and create clear fallback to live agents.",Director of Customer Operations,11/18/25,Medium,High
+R4,Escalation routing gaps between Slack and Wrike,Medium,Reduce,"Standardize escalation channels, create a single incident room per major issue, and enforce runbook usage.",CX Program Manager,11/25/25,Medium,Medium
+R5,Under-trained frontline agents on AI-assisted workflows,Medium,Reduce,"Launch targeted enablement, in-app guidance, and QA reviews on AI-assisted resolutions.",Head of CX Enablement,12/5/25,Medium,Low
+R6,Reporting and telemetry outages in CX dashboards,Medium,Reduce,"Harden ETL jobs, add monitoring and on-call rotations, and document failover dashboards.",Data Platform Lead,11/28/25,Low,Medium

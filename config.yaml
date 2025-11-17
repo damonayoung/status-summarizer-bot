@@ -140,7 +140,11 @@ advanced:
 scenarios:
   sentient_cx_risk_radar:
     enabled: true
-    title: "Sentient CX Risk Radar – Aurora National Bank"
+    title: "Sentient CX Risk Radar – Aurora National Bank (Platinum)"
+    description: >
+      Day 2: Consulting-grade CX risk dashboard with heat map, CX sentiment index,
+      risk trajectory, stakeholder impact, and dollarized exposure.
+
 
     # Data sources specific to this scenario
     data_sources:
@@ -180,6 +184,36 @@ scenarios:
         enabled: true
         path: "sample_data/day2_sentient_cx/stakeholders_day2.csv"
 
+      cx_sentiment: 
+        enabled: true
+        path: "sample_data/day2_sentient_cx/cx_sentiment_metrics.csv"
+
+      risk_financials:
+        enabled: true
+        path: "sample_data/day2_sentient_cx/risk_financials.csv"
+
+    analytics:
+      cx_sentiment:
+        baseline_index: 75          # above this = healthy
+        warning_drop_pct: 5         # >5% drop WoW = flag
+        critical_drop_pct: 10       # >10% drop WoW = red
+      financial:
+        critical_exposure: 3000000  # > $3M exposure
+        high_exposure: 1000000      # $1–3M
+        medium_exposure: 250000     # $250k–1M
+      heatmap:
+        impact_mapping:
+          High: 3
+          Medium: 2
+          Low: 1
+        likelihood_mapping:
+          High: 3
+          Medium: 2
+          Low: 1
+      trajectory:
+        lookback_weeks: 4
+    
+    
     # Report sections specific to CX Risk Radar
     sections:
       - executive_overview

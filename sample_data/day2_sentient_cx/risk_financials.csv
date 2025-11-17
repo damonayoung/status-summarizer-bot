@@ -1,4 +1,7 @@
-﻿risk_id,annual_revenue_at_risk,regulatory_exposure,operational_cost_impact,mitigation_cost,confidence_level
-R-12,"3,200,000",0,"450,000","180,000",0.78
-R-19,0,"4,200,000","90,000","240,000",0.81
-CX-1040,"1,500,000",0,"300,000","160,000",0.75
+﻿RiskID,ExposureMillions
+R1,3.8
+R2,2.5
+R3,1.7
+R4,0.9
+R5,0.6
+R6,0.5
