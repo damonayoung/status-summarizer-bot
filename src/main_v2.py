@@ -91,6 +91,9 @@ def build_dashboard_context(config: Dict[str, Any], scenario: str) -> Dict[str, 
 
     # Sentiment current and baseline
     sentiment_index_current = None
+    sentiment_index_baseline = None
+    sentiment_index_previous = None
+    sentiment_drop_pct = None
     sentiment_delta_text = None
     escalations_current = None
     escalations_delta_text = None
@@ -98,14 +101,27 @@ def build_dashboard_context(config: Dict[str, Any], scenario: str) -> Dict[str, 
     if not sentiment_df.empty:
         # Actual columns: week_start, avg_sentiment_score, complaints, escalations, latency_ms, blocked_tickets, trust_index, notes
         sentiment_df = sentiment_df.sort_values("week_start")
+
+        # Baseline: first week in the data
+        baseline = sentiment_df.iloc[0]
+        sentiment_index_baseline = float(baseline.get("avg_sentiment_score", 0.0))
+
+        # Current: most recent week
         latest = sentiment_df.iloc[-1]
         sentiment_index_current = float(latest.get("avg_sentiment_score", 0.0))
 
         if len(sentiment_df) >= 2:
+            # Previous: second-to-last week for WoW comparison
             prev = sentiment_df.iloc[-2]
-            prev_val = float(prev.get("avg_sentiment_score", sentiment_index_current))
-            if prev_val:
-                pct_change = (sentiment_index_current - prev_val) / prev_val * 100.0
+            sentiment_index_previous = float(prev.get("avg_sentiment_score", sentiment_index_current))
+
+            # Calculate drop from baseline
+            if sentiment_index_baseline and sentiment_index_baseline > 0:
+                sentiment_drop_pct = round(((sentiment_index_current - sentiment_index_baseline) / sentiment_index_baseline) * 100.0, 1)
+
+            # WoW delta text
+            if sentiment_index_previous:
+                pct_change = (sentiment_index_current - sentiment_index_previous) / sentiment_index_previous * 100.0
                 arrow = "▲" if pct_change > 0 else "▼" if pct_change < 0 else "■"
                 sentiment_delta_text = f"{arrow} {pct_change:.1f}% vs prior period"
         else:
@@ -465,12 +481,16 @@ def build_dashboard_context(config: Dict[str, Any], scenario: str) -> Dict[str, 
         "cx_status_label": cx_status_label,
         "cx_status_subtitle": cx_status_subtitle,
         "sentiment_index_current": sentiment_index_current,
+        "sentiment_index_baseline": sentiment_index_baseline,
+        "sentiment_index_previous": sentiment_index_previous,
+        "sentiment_drop_pct": sentiment_drop_pct,
         "sentiment_delta_text": sentiment_delta_text,
         "escalations_current": escalations_current,
         "escalations_delta_text": escalations_delta_text,
         "top_exposure_label": top_exposure_label,
         "top_exposure_comment": top_exposure_comment,
         "total_exposure_millions": round(total_exposure_millions, 1) if total_exposure_millions else 0.0,
+        "total_mapped_exposure_millions": round(total_exposure_millions, 1) if total_exposure_millions else 0.0,  # Same source of truth
         "risk_heatmap": heatmap,
         "high_crit_share": high_crit_share,
         "med_share": med_share,

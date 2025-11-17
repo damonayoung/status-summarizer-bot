@@ -1177,12 +1177,24 @@
     <section class="kpi-strip">
       <div class="kpi-card">
         <div class="kpi-label">CX Sentiment Index</div>
-        <div class="kpi-value">{{cx_index|default('61')}}</div>
-        <div class="kpi-caption">{{cx_index_trend|default('↓ -25% from baseline (critical)')}}</div>
+        <div class="kpi-value">{{ sentiment_index_current|default('61') }}</div>
+        <div class="kpi-caption">
+          {% if sentiment_drop_pct and sentiment_index_baseline %}
+            ↓ {{ sentiment_drop_pct }}% from baseline {{ sentiment_index_baseline|int }} (critical)
+          {% else %}
+            {{cx_index_trend|default('↓ -25% from baseline (critical)')}}
+          {% endif %}
+        </div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Total Exposure</div>
-        <div class="kpi-value">{{total_exposure|default('$8.9M')}}</div>
+        <div class="kpi-value">
+          {% if total_exposure_millions %}
+            ${{ "%.1f"|format(total_exposure_millions) }}M
+          {% else %}
+            {{total_exposure|default('$8.9M')}}
+          {% endif %}
+        </div>
         <div class="kpi-caption">Revenue + regulatory at risk</div>
       </div>
       <div class="kpi-card">
