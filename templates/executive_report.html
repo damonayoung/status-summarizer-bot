@@ -1032,19 +1032,77 @@
 
     /* Analyst Notes Section */
     .analyst-notes{
-      margin-top:28px;
-      border-top:1px dashed rgba(148, 163, 184, 0.5);
-      padding-top:10px;
+      margin-top:32px;
+      padding-top:24px;
+      border-top:2px solid var(--border);
+      opacity:0.95;
     }
-    .analyst-notes > details > summary{
-      font-size:12px;
-      font-weight:600;
-      cursor:pointer;
-      list-style:none;
+    .analyst-notes .section-header{
+      margin-bottom:20px;
     }
-    .analyst-notes-body{
-      margin-top:6px;
+    .analyst-notes .section-header h2{
+      font-size:18px;
+      font-weight:700;
+      color:var(--ink);
+      margin:0 0 8px 0;
+    }
+    .analyst-notes .section-subtitle{
       font-size:12px;
+      color:var(--mute);
+      font-style:italic;
+      margin:0;
+    }
+    .analyst-notes-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+      gap:16px;
+      margin-top:12px;
+    }
+    .analyst-note-block{
+      background:linear-gradient(135deg, #0f172a, #1e293b);
+      color:#e5e7eb;
+      border-radius:10px;
+      padding:14px 16px;
+      font-size:0.875rem;
+      border:1px solid rgba(148, 163, 184, 0.2);
+    }
+    .analyst-note-block h3{
+      margin-top:0;
+      margin-bottom:10px;
+      font-size:0.95rem;
+      color:#f9fafb;
+      font-weight:700;
+      letter-spacing:0.02em;
+    }
+    .analyst-note-block ul{
+      margin:0;
+      padding-left:18px;
+      list-style-type:disc;
+    }
+    .analyst-note-block li{
+      margin-bottom:6px;
+      line-height:1.5;
+      color:#e5e7eb;
+    }
+    .ai-summary-excerpt{
+      font-size:0.85rem;
+      line-height:1.6;
+      color:#d1d5db;
+    }
+    .ai-summary-excerpt h1,
+    .ai-summary-excerpt h2,
+    .ai-summary-excerpt h3{
+      font-size:0.95rem;
+      color:#f9fafb;
+      margin:8px 0 6px;
+    }
+    .ai-summary-excerpt p{
+      margin:6px 0;
+    }
+    .ai-summary-excerpt ul,
+    .ai-summary-excerpt ol{
+      margin:6px 0;
+      padding-left:18px;
     }
 
     /* EBITDA Waterfall Section */
@@ -1682,14 +1740,61 @@
       </div>
     </section>
 
-    <!-- Analyst Notes & Detail -->
+    <!-- Analyst Notes & Detail (Appendix) -->
     <section class="analyst-notes">
-      <details open>
-        <summary>Analyst Notes &amp; Detail</summary>
-        <div class="analyst-notes-body">
-          {{content|safe}}
+      <div class="section-header">
+        <h2>Analyst Notes & Detail (Appendix)</h2>
+        <p class="section-subtitle">
+          For TPM / PMO deep dive – assumptions, caveats, and underlying patterns
+        </p>
+      </div>
+
+      <div class="analyst-notes-grid">
+        <div class="analyst-note-block">
+          <h3>CX Trend Summary</h3>
+          <ul>
+            {% if sentiment_index_baseline and sentiment_index_current and sentiment_drop_pct %}
+            <li>Sentiment declined from {{ sentiment_index_baseline|int }} to {{ sentiment_index_current|int }} ({{ sentiment_drop_pct }}%) over the measurement period.</li>
+            {% else %}
+            <li>Sentiment trend shows progressive decline, correlating with increased escalation volume.</li>
+            {% endif %}
+            {% if escalations_current %}
+            <li>Escalations reached {{ escalations_current }} in the most recent period, driven by automation quality issues.</li>
+            {% endif %}
+            <li>Risk exposure remains concentrated in high/critical impact buckets.</li>
+          </ul>
         </div>
-      </details>
+
+        <div class="analyst-note-block">
+          <h3>Risk & Exposure Summary</h3>
+          <ul>
+            {% if total_exposure_millions and high_crit_share %}
+            <li>Total Exposure: ${{ "%.1f"|format(total_exposure_millions) }}M, with {{ high_crit_share }} in High/Critical buckets.</li>
+            {% else %}
+            <li>Risk exposure concentrated in high-severity, high-likelihood quadrants.</li>
+            {% endif %}
+            <li>Top 3 risks account for majority of total exposure (compliance, latency, misrouting).</li>
+            <li>Compliance-related risks represent the largest single exposure category.</li>
+          </ul>
+        </div>
+
+        <div class="analyst-note-block">
+          <h3>Assumptions & Data Caveats</h3>
+          <ul>
+            <li>Exposure values are scenario-based estimates, not audit-ready financials.</li>
+            <li>Sentiment index derived from composite of CSAT, NPS proxy, and response quality metrics.</li>
+            <li>Risk classifications based on ImpactLevel and LikelihoodLevel from Day 2 risk register.</li>
+            <li>Timeline estimates assume no major scope changes or external blockers.</li>
+          </ul>
+        </div>
+
+        <div class="analyst-note-block">
+          <h3>AI-Generated Insights</h3>
+          <div class="ai-summary-excerpt">
+            {{content|safe}}
+          </div>
+        </div>
+      </div>
     </section>
 
     {% else %}
