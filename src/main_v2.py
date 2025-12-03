@@ -23,6 +23,9 @@ from ingestors.notes_ingestor import NotesIngestor
 from ingestors.csv_ingestor import CSVIngestor
 from charts import generate_risk_charts, generate_ebitda_waterfall_chart
 from context import build_ebitda_context
+from cyber_charts import generate_all_cyber_charts
+from cyber_prompt_builder import build_data_driven_cyber_prompt
+from cyber_context_builder import build_cyber_context  # Stage 1: Fortune-500-grade context builder
 
 
 
@@ -736,6 +739,2483 @@ def build_risk_context(config: Dict[str, Any], scenario: str) -> Dict[str, Any]:
     return context
 
 
+def generate_cyber_charts(context: Dict[str, Any], output_dir: str = "output") -> Dict[str, str]:
+    """
+    Generate cybersecurity-specific charts using matplotlib.
+
+    Returns dict of chart_name -> file_path for template injection.
+    """
+    import matplotlib
+    matplotlib.use('Agg')  # Non-interactive backend
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from datetime import datetime
+
+    # Create charts directory
+    charts_dir = Path(output_dir) / "charts" / "cyber"
+    charts_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    chart_paths = {}
+
+    print("\n  📊 Generating cybersecurity visualization charts...")
+
+    # === EBITDA WATERFALL CHART ===
+
+    # 0. EBITDA Impact Waterfall (Executive Financial View)
+    try:
+        ebitda_components = context.get("ebitda_impact_components", {})
+        waterfall_data = ebitda_components.get("waterfall_components", [])
+
+        if waterfall_data:
+            fig, ax = plt.subplots(figsize=(14, 8))
+
+            # Extract labels and values
+            labels = [c["label"] for c in waterfall_data]
+            values = [c["value"] for c in waterfall_data]
+            types = [c["type"] for c in waterfall_data]
+
+            # Calculate cumulative values for waterfall positioning
+            cumulative = [0]
+            for i in range(len(values) - 1):
+                if types[i] == "baseline":
+                    cumulative.append(values[i])
+                elif types[i+1] == "final":
+                    cumulative.append(0)  # Final bar starts from 0
+                else:
+                    cumulative.append(cumulative[-1] + values[i])
+
+            # Plot bars with color coding
+            colors = []
+            for t in types:
+                if t == "baseline":
+                    colors.append('#3b82f6')  # Blue for baseline
+                elif t == "negative":
+                    colors.append('#dc2626')  # Red for negative impacts
+                elif t == "investment":
+                    colors.append('#f59e0b')  # Amber for remediation spend
+                elif t == "final":
+                    colors.append('#10b981')  # Green for final adjusted EBITDA
+                else:
+                    colors.append('#6b7280')  # Gray default
+
+            # Create waterfall bars
+            for i, (label, value, cum, color) in enumerate(zip(labels, values, cumulative, colors)):
+                if types[i] == "baseline" or types[i] == "final":
+                    # Full height bars for baseline and final
+                    ax.bar(i, abs(value), bottom=0, color=color, edgecolor='white',
+                          linewidth=2, alpha=0.9, width=0.8)
+                else:
+                    # Floating bars for changes
+                    ax.bar(i, abs(value), bottom=cum, color=color, edgecolor='white',
+                          linewidth=2, alpha=0.9, width=0.8)
+
+                # Add value labels on bars
+                if types[i] == "baseline" or types[i] == "final":
+                    y_pos = abs(value) / 2
+                else:
+                    y_pos = cum + abs(value) / 2
+
+                # Format label text
+                if value >= 0:
+                    label_text = f"${abs(value):.1f}M"
+                else:
+                    label_text = f"-${abs(value):.1f}M"
+
+                ax.text(i, y_pos, label_text, ha='center', va='center',
+                       fontsize=11, fontweight='700', color='white' if types[i] != 'baseline' else 'white')
+
+            # Add connecting lines between bars (optional)
+            for i in range(len(values) - 1):
+                if types[i] != "final" and types[i+1] != "final":
+                    next_y = cumulative[i+1]
+                    current_y = cumulative[i] + values[i] if types[i] != "baseline" else values[i]
+                    ax.plot([i + 0.4, i + 1.4], [current_y, next_y], 'k--', linewidth=1, alpha=0.3)
+
+            # Styling
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, rotation=25, ha='right', fontsize=11, fontweight='600')
+            ax.set_ylabel('EBITDA Impact ($M)', fontsize=13, fontweight='700')
+            ax.set_title('Security EBITDA Impact Waterfall: Baseline → Risk-Adjusted',
+                        fontsize=15, fontweight='700', pad=20)
+            ax.grid(axis='y', alpha=0.25, linestyle='--')
+            ax.axhline(y=0, color='black', linewidth=1.5, alpha=0.7)
+
+            # Add legend
+            from matplotlib.patches import Patch
+            legend_elements = [
+                Patch(facecolor='#3b82f6', label='Baseline EBITDA'),
+                Patch(facecolor='#dc2626', label='Cyber Risk Exposure'),
+                Patch(facecolor='#f59e0b', label='Remediation Investment'),
+                Patch(facecolor='#10b981', label='Risk-Adjusted EBITDA')
+            ]
+            ax.legend(handles=legend_elements, loc='upper right', frameon=True,
+                     shadow=True, fontsize=10)
+
+            plt.tight_layout()
+
+            # Save
+            chart_path = charts_dir / f"ebitda_waterfall_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+
+            chart_paths["ebitda_waterfall_chart"] = f"charts/cyber/ebitda_waterfall_{timestamp}.png"
+            print(f"    ✓ EBITDA waterfall chart generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping EBITDA waterfall chart: {e}")
+
+    # === CORE OVERVIEW CHARTS (High-Impact) ===
+
+    # 1. Incident Trend Over Time
+    try:
+        security_metrics = context.get("security_metrics", [])
+        if security_metrics:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Extract weekly data
+            weeks = [m.get("week_start", f"Week {i+1}") for i, m in enumerate(security_metrics)]
+            incidents_detected = [int(m.get("incidents_detected", 0)) for m in security_metrics]
+            incidents_resolved = [int(m.get("incidents_resolved", 0)) for m in security_metrics]
+
+            # Plot lines
+            ax.plot(weeks, incidents_detected, marker='o', linewidth=2.5,
+                   color='#dc2626', label='Incidents Detected', markersize=8)
+            ax.plot(weeks, incidents_resolved, marker='s', linewidth=2.5,
+                   color='#10b981', label='Incidents Resolved', markersize=8)
+
+            # Styling
+            ax.set_xlabel('Week Starting', fontsize=12, fontweight='600')
+            ax.set_ylabel('Incident Count', fontsize=12, fontweight='600')
+            ax.set_title('Incident Trend: Detection vs. Resolution', fontsize=14, fontweight='700', pad=20)
+            ax.legend(loc='upper left', frameon=True, shadow=True)
+            ax.grid(axis='y', alpha=0.3, linestyle='--')
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+
+            # Save
+            chart_path = charts_dir / f"cyber_incident_trend_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+
+            chart_paths["cyber_incident_trend"] = f"charts/cyber/cyber_incident_trend_{timestamp}.png"
+            print(f"    ✓ Incident trend chart generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping incident trend chart: {e}")
+
+    # 2. Vulnerability Severity Distribution (Bar Chart)
+    try:
+        vulnerabilities = context.get("vulnerabilities", [])
+        if vulnerabilities:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Count by severity
+            severity_counts = {
+                'Critical': len([v for v in vulnerabilities if v.get("Severity") == "Critical"]),
+                'High': len([v for v in vulnerabilities if v.get("Severity") == "High"]),
+                'Medium': len([v for v in vulnerabilities if v.get("Severity") == "Medium"]),
+                'Low': len([v for v in vulnerabilities if v.get("Severity") == "Low"])
+            }
+
+            severities = list(severity_counts.keys())
+            counts = list(severity_counts.values())
+            colors = ['#dc2626', '#f59e0b', '#6b7280', '#10b981']
+
+            # Create bar chart
+            bars = ax.bar(severities, counts, color=colors, alpha=0.8, edgecolor='white', linewidth=2)
+
+            # Add value labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       f'{int(height)}',
+                       ha='center', va='bottom', fontsize=12, fontweight='700')
+
+            ax.set_xlabel('Severity Level', fontsize=12, fontweight='600')
+            ax.set_ylabel('Vulnerability Count', fontsize=12, fontweight='600')
+            ax.set_title('Vulnerability Distribution by Severity', fontsize=14, fontweight='700', pad=20)
+            ax.grid(axis='y', alpha=0.3, linestyle='--')
+            plt.tight_layout()
+
+            # Save
+            chart_path = charts_dir / f"cyber_vuln_severity_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+
+            chart_paths["cyber_vuln_severity"] = f"charts/cyber/cyber_vuln_severity_{timestamp}.png"
+            print(f"    ✓ Vulnerability severity chart generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping vulnerability severity chart: {e}")
+
+    # 3. Control/Compliance Coverage vs. Gaps
+    try:
+        controls = context.get("controls", [])
+        if controls:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Categorize controls by maturity
+            mature_controls = len([c for c in controls if float(c.get("MaturityScore", 0)) >= 85])
+            developing_controls = len([c for c in controls if 60 <= float(c.get("MaturityScore", 0)) < 85])
+            baseline_controls = len([c for c in controls if 40 <= float(c.get("MaturityScore", 0)) < 60])
+            immature_controls = len([c for c in controls if float(c.get("MaturityScore", 0)) < 40])
+
+            # Count controls with gaps
+            controls_with_gaps = len([c for c in controls if c.get("HasGap") == "Yes"])
+            controls_no_gaps = len(controls) - controls_with_gaps
+
+            # Create stacked bar chart
+            categories = ['Maturity Levels', 'Gap Status']
+
+            # Maturity breakdown
+            maturity_data = [mature_controls, developing_controls, baseline_controls, immature_controls]
+            gap_data = [controls_no_gaps, controls_with_gaps]
+
+            x = np.arange(len(categories))
+            width = 0.6
+
+            # Plot maturity levels
+            ax.bar(0, mature_controls, width, label='Mature (≥85%)', color='#10b981', alpha=0.9)
+            ax.bar(0, developing_controls, width, bottom=mature_controls, label='Developing (60-84%)', color='#3b82f6', alpha=0.9)
+            ax.bar(0, baseline_controls, width, bottom=mature_controls+developing_controls, label='Baseline (40-59%)', color='#f59e0b', alpha=0.9)
+            ax.bar(0, immature_controls, width, bottom=mature_controls+developing_controls+baseline_controls, label='Immature (<40%)', color='#dc2626', alpha=0.9)
+
+            # Plot gap status
+            ax.bar(1, controls_no_gaps, width, label='No Gaps', color='#10b981', alpha=0.9)
+            ax.bar(1, controls_with_gaps, width, bottom=controls_no_gaps, label='Has Gaps', color='#dc2626', alpha=0.9)
+
+            ax.set_ylabel('Control Count', fontsize=12, fontweight='600')
+            ax.set_title('Security Controls: Maturity & Gap Analysis', fontsize=14, fontweight='700', pad=20)
+            ax.set_xticks(x)
+            ax.set_xticklabels(categories)
+            ax.legend(loc='upper right', frameon=True, shadow=True, fontsize=9)
+            ax.grid(axis='y', alpha=0.3, linestyle='--')
+            plt.tight_layout()
+
+            # Save
+            chart_path = charts_dir / f"cyber_controls_coverage_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+
+            chart_paths["cyber_controls_coverage"] = f"charts/cyber/cyber_controls_coverage_{timestamp}.png"
+            print(f"    ✓ Control coverage chart generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping control coverage chart: {e}")
+
+    # === DETAILED CHARTS (Existing) ===
+
+    # 4. Vulnerability Aging Histogram
+    try:
+        vulnerabilities = context.get("vulnerabilities", [])
+        if vulnerabilities:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Extract days open by severity
+            critical_days = [int(v.get("DaysOpen", 0)) for v in vulnerabilities if v.get("Severity") == "Critical"]
+            high_days = [int(v.get("DaysOpen", 0)) for v in vulnerabilities if v.get("Severity") == "High"]
+            medium_days = [int(v.get("DaysOpen", 0)) for v in vulnerabilities if v.get("Severity") == "Medium"]
+
+            # Create histogram bins
+            bins = [0, 7, 30, 90, 180, 365]
+            bin_labels = ['0-7d', '7-30d', '30-90d', '90-180d', '180d+']
+
+            ax.hist([critical_days, high_days, medium_days], bins=bins,
+                   label=['Critical', 'High', 'Medium'],
+                   color=['#dc2626', '#f59e0b', '#6b7280'],
+                   alpha=0.8, edgecolor='white', linewidth=1.5)
+
+            ax.set_xlabel('Days Open', fontsize=12, fontweight='600')
+            ax.set_ylabel('Vulnerability Count', fontsize=12, fontweight='600')
+            ax.set_title('Vulnerability Aging Distribution by Severity', fontsize=14, fontweight='700', pad=20)
+            ax.legend(loc='upper right', frameon=True, shadow=True)
+            ax.grid(axis='y', alpha=0.3, linestyle='--')
+            ax.axvline(x=7, color='#dc2626', linestyle='--', alpha=0.5, label='Critical SLA (7d)')
+            ax.axvline(x=30, color='#f59e0b', linestyle='--', alpha=0.5, label='High SLA (30d)')
+
+            plt.tight_layout()
+            chart_path = charts_dir / f"vuln_aging_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+            chart_paths["vuln_aging_chart"] = f"charts/cyber/vuln_aging_{timestamp}.png"
+            print(f"    ✓ Vulnerability aging histogram generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping vuln aging chart: {e}")
+
+    # 2. Incident Velocity Trendline
+    try:
+        metrics = context.get("security_metrics", [])
+        if metrics:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            weeks = [m.get("week_start", "") for m in metrics]
+            incidents_detected = [int(m.get("incidents_detected", 0)) for m in metrics]
+
+            ax.plot(range(len(weeks)), incidents_detected, marker='o', linewidth=2.5,
+                   markersize=8, color='#0ea5e9', label='Incidents Detected')
+
+            # 4-week moving average
+            if len(incidents_detected) >= 4:
+                moving_avg = np.convolve(incidents_detected, np.ones(4)/4, mode='valid')
+                ax.plot(range(len(moving_avg)), moving_avg, linestyle='--', linewidth=2,
+                       color='#f59e0b', label='4-Week Moving Average', alpha=0.7)
+
+            ax.set_xlabel('Week', fontsize=12, fontweight='600')
+            ax.set_ylabel('Incidents Detected', fontsize=12, fontweight='600')
+            ax.set_title('Incident Velocity: Weekly Detection Rate', fontsize=14, fontweight='700', pad=20)
+            ax.set_xticks(range(len(weeks)))
+            ax.set_xticklabels([w.split('/')[0] if '/' in w else w for w in weeks], rotation=45, ha='right')
+            ax.legend(loc='upper left', frameon=True, shadow=True)
+            ax.grid(axis='both', alpha=0.3, linestyle='--')
+
+            plt.tight_layout()
+            chart_path = charts_dir / f"incident_velocity_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+            chart_paths["incident_velocity_chart"] = f"charts/cyber/incident_velocity_{timestamp}.png"
+            print(f"    ✓ Incident velocity trendline generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping incident velocity chart: {e}")
+
+    # 3. Top Threat Categories Bar Chart
+    try:
+        threat_intel = context.get("threat_intel", [])
+        if threat_intel:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Count threat categories (TTPs)
+            ttp_counts = {}
+            for threat in threat_intel:
+                ttp = threat.get("TTP", "Unknown")
+                ttp_label = ttp.split(' - ')[1] if ' - ' in ttp else ttp
+                ttp_counts[ttp_label] = ttp_counts.get(ttp_label, 0) + 1
+
+            # Sort by count and take top 8
+            sorted_ttps = sorted(ttp_counts.items(), key=lambda x: x[1], reverse=True)[:8]
+            labels = [t[0][:30] for t in sorted_ttps]  # Truncate long labels
+            counts = [t[1] for t in sorted_ttps]
+
+            colors = ['#dc2626' if c >= 2 else '#f59e0b' if c > 0 else '#6b7280' for c in counts]
+            bars = ax.barh(labels, counts, color=colors, edgecolor='white', linewidth=1.5)
+
+            ax.set_xlabel('Threat Actor Count', fontsize=12, fontweight='600')
+            ax.set_ylabel('MITRE ATT&CK Technique', fontsize=12, fontweight='600')
+            ax.set_title('Top Threat Categories (MITRE ATT&CK)', fontsize=14, fontweight='700', pad=20)
+            ax.grid(axis='x', alpha=0.3, linestyle='--')
+
+            # Add value labels on bars
+            for bar in bars:
+                width = bar.get_width()
+                ax.text(width + 0.1, bar.get_y() + bar.get_height()/2,
+                       f'{int(width)}', ha='left', va='center', fontsize=10, fontweight='600')
+
+            plt.tight_layout()
+            chart_path = charts_dir / f"threat_categories_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+            chart_paths["threat_categories_chart"] = f"charts/cyber/threat_categories_{timestamp}.png"
+            print(f"    ✓ Threat categories bar chart generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping threat categories chart: {e}")
+
+    # 4. Alert Triage Funnel
+    try:
+        metrics = context.get("security_metrics", [])
+        if metrics:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Use latest week metrics
+            latest = metrics[-1] if metrics else {}
+
+            # Funnel data (Detection → Analysis → Containment → Closure)
+            stages = ['Detection', 'Analysis', 'Containment', 'Closure']
+            # Model: 100% detected, 85% analyzed, 70% contained, 60% closed
+            incidents_detected = int(latest.get("incidents_detected", 8))
+            values = [
+                incidents_detected,
+                int(incidents_detected * 0.85),
+                int(incidents_detected * 0.70),
+                int(incidents_detected * 0.60)
+            ]
+
+            colors_funnel = ['#0ea5e9', '#10b981', '#f59e0b', '#6b7280']
+
+            # Create funnel (inverted pyramid)
+            y_pos = np.arange(len(stages))
+            bars = ax.barh(y_pos, values, color=colors_funnel, edgecolor='white', linewidth=2)
+
+            ax.set_yticks(y_pos)
+            ax.set_yticklabels(stages, fontsize=12, fontweight='600')
+            ax.set_xlabel('Alert Count', fontsize=12, fontweight='600')
+            ax.set_title('Alert Triage Funnel: Detection → Closure', fontsize=14, fontweight='700', pad=20)
+            ax.grid(axis='x', alpha=0.3, linestyle='--')
+
+            # Add percentage labels
+            for i, (bar, val) in enumerate(zip(bars, values)):
+                pct = (val / incidents_detected * 100) if incidents_detected > 0 else 0
+                ax.text(val + 0.2, bar.get_y() + bar.get_height()/2,
+                       f'{val} ({pct:.0f}%)', ha='left', va='center',
+                       fontsize=11, fontweight='600')
+
+            plt.tight_layout()
+            chart_path = charts_dir / f"alert_triage_funnel_{timestamp}.png"
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+            chart_paths["alert_triage_funnel"] = f"charts/cyber/alert_triage_funnel_{timestamp}.png"
+
+            # Calculate closure rate for template
+            closure_rate = (values[-1] / incidents_detected * 100) if incidents_detected > 0 else 0
+            chart_paths["alert_closure_rate"] = int(closure_rate)
+
+            print(f"    ✓ Alert triage funnel generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping alert triage funnel: {e}")
+
+    # 5. MITRE ATT&CK Heatmap (simplified)
+    try:
+        fig, ax = plt.subplots(figsize=(14, 8))
+
+        # MITRE ATT&CK tactics (simplified 14 tactics)
+        tactics = [
+            'Initial Access', 'Execution', 'Persistence', 'Privilege Escalation',
+            'Defense Evasion', 'Credential Access', 'Discovery', 'Lateral Movement',
+            'Collection', 'Command & Control', 'Exfiltration', 'Impact',
+            'Resource Development', 'Reconnaissance'
+        ]
+
+        # Mock detection coverage (0-100%)
+        coverage = np.random.randint(30, 95, size=len(tactics))
+
+        # Create heatmap
+        colors_map = ['#dc2626' if c < 50 else '#f59e0b' if c < 75 else '#10b981' for c in coverage]
+        bars = ax.barh(tactics, coverage, color=colors_map, edgecolor='white', linewidth=2)
+
+        ax.set_xlabel('Detection Coverage (%)', fontsize=12, fontweight='600')
+        ax.set_ylabel('MITRE ATT&CK Tactic', fontsize=12, fontweight='600')
+        ax.set_title('MITRE ATT&CK Detection Coverage by Tactic', fontsize=14, fontweight='700', pad=20)
+        ax.set_xlim(0, 100)
+        ax.grid(axis='x', alpha=0.3, linestyle='--')
+
+        # Add coverage % labels
+        for bar, cov in zip(bars, coverage):
+            ax.text(cov + 2, bar.get_y() + bar.get_height()/2,
+                   f'{cov}%', ha='left', va='center', fontsize=10, fontweight='600')
+
+        plt.tight_layout()
+        chart_path = charts_dir / f"mitre_attack_heatmap_{timestamp}.png"
+        plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        chart_paths["mitre_attack_heatmap"] = f"charts/cyber/mitre_attack_heatmap_{timestamp}.png"
+        print(f"    ✓ MITRE ATT&CK heatmap generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping MITRE ATT&CK heatmap: {e}")
+
+    # 6. Attack Surface Tree Diagram (placeholder network graph)
+    try:
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # Simple tree visualization
+        # Root: Internet → DMZ → Internal
+        layers = {
+            'Internet': (0, ['Web Server', 'API Gateway']),
+            'DMZ': (1, ['Web Server', 'API Gateway', 'Load Balancer']),
+            'Internal': (2, ['App Servers', 'Databases', 'File Shares'])
+        }
+
+        ax.text(0.5, 0.9, 'Internet', ha='center', fontsize=14, fontweight='700',
+               bbox=dict(boxstyle='round,pad=0.5', facecolor='#dc2626', edgecolor='white', alpha=0.8))
+        ax.text(0.3, 0.6, 'Web Server\n(High Risk)', ha='center', fontsize=11,
+               bbox=dict(boxstyle='round,pad=0.4', facecolor='#f59e0b', edgecolor='white'))
+        ax.text(0.7, 0.6, 'API Gateway\n(High Risk)', ha='center', fontsize=11,
+               bbox=dict(boxstyle='round,pad=0.4', facecolor='#f59e0b', edgecolor='white'))
+        ax.text(0.2, 0.3, 'App Servers\n(Medium)', ha='center', fontsize=10,
+               bbox=dict(boxstyle='round,pad=0.3', facecolor='#6b7280', edgecolor='white'))
+        ax.text(0.5, 0.3, 'Databases\n(Critical)', ha='center', fontsize=10,
+               bbox=dict(boxstyle='round,pad=0.3', facecolor='#dc2626', edgecolor='white'))
+        ax.text(0.8, 0.3, 'File Shares\n(Low)', ha='center', fontsize=10,
+               bbox=dict(boxstyle='round,pad=0.3', facecolor='#10b981', edgecolor='white'))
+
+        # Draw connection lines
+        ax.plot([0.5, 0.3], [0.88, 0.62], 'k-', linewidth=2, alpha=0.3)
+        ax.plot([0.5, 0.7], [0.88, 0.62], 'k-', linewidth=2, alpha=0.3)
+        ax.plot([0.3, 0.2], [0.58, 0.32], 'k-', linewidth=1.5, alpha=0.3)
+        ax.plot([0.3, 0.5], [0.58, 0.32], 'k-', linewidth=1.5, alpha=0.3)
+        ax.plot([0.7, 0.5], [0.58, 0.32], 'k-', linewidth=1.5, alpha=0.3)
+        ax.plot([0.7, 0.8], [0.58, 0.32], 'k-', linewidth=1.5, alpha=0.3)
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis('off')
+        ax.set_title('Attack Surface Topology: External → Internal Zones',
+                    fontsize=14, fontweight='700', pad=20)
+
+        plt.tight_layout()
+        chart_path = charts_dir / f"attack_surface_tree_{timestamp}.png"
+        plt.savefig(chart_path, dpi=150, bbox_inches='tight', facecolor='white')
+        plt.close()
+        chart_paths["attack_surface_tree_chart"] = f"charts/cyber/attack_surface_tree_{timestamp}.png"
+        print(f"    ✓ Attack surface tree diagram generated")
+    except Exception as e:
+        print(f"    ⚠ Skipping attack surface tree: {e}")
+
+    print(f"  ✅ Generated {len([k for k in chart_paths if k != 'alert_closure_rate'])} cyber visualization charts\n")
+
+    return chart_paths
+
+
+def build_cyber_risk_matrix(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Build cyber risk heatmap matrix (Impact × Likelihood) from real CSV data.
+
+    Creates a 4×4 grid mapping risks using actual ImpactLevel and LikelihoodLevel
+    columns from security_risk_register.csv, with financial exposure from
+    security_financials.csv for color intensity.
+
+    Args:
+        context: Full cyber context with risks and cyber_data_frames
+
+    Returns:
+        Dict with matrix cells containing count, exposure_millions, risk_ids, and risk_details
+    """
+    # Define matrix dimensions (matching CSV values)
+    impact_levels = ["Low", "Medium", "High", "Critical"]
+    likelihood_levels = ["Low", "Medium", "High", "Critical"]  # Match CSV
+
+    # Initialize matrix cells
+    matrix = {}
+    for impact in impact_levels:
+        for likelihood in likelihood_levels:
+            cell_key = f"{impact}_{likelihood}"
+            matrix[cell_key] = {
+                "count": 0,
+                "exposure_millions": 0.0,
+                "risk_ids": [],
+                "risk_details": []  # Store risk details for tooltips
+            }
+
+    # Use DataFrames for accurate mapping
+    if "cyber_data_frames" in context:
+        risk_df = context["cyber_data_frames"].get("security_risk_register")
+        financials_df = context["cyber_data_frames"].get("security_financials")
+
+        if risk_df is not None and not risk_df.empty:
+            # Merge with financials for exposure amounts
+            if financials_df is not None and not financials_df.empty:
+                merged = risk_df.merge(financials_df, on="RiskID", how="left")
+            else:
+                merged = risk_df.copy()
+                merged["ExposureMillions"] = 0.0
+
+            # Map each risk to matrix cell
+            for _, row in merged.iterrows():
+                risk_id = row.get("RiskID", "Unknown")
+                impact = row.get("ImpactLevel", "Medium")
+                likelihood = row.get("LikelihoodLevel", "Medium")
+                exposure = row.get("ExposureMillions", 0.0)
+                title = row.get("Title", "Unknown Risk")
+                severity = row.get("Severity", "Medium")
+
+                # Validate levels exist in our matrix
+                if impact not in impact_levels:
+                    impact = "Medium"  # Default fallback
+                if likelihood not in likelihood_levels:
+                    likelihood = "Medium"  # Default fallback
+
+                cell_key = f"{impact}_{likelihood}"
+                matrix[cell_key]["count"] += 1
+                matrix[cell_key]["exposure_millions"] += exposure
+                matrix[cell_key]["risk_ids"].append(risk_id)
+                matrix[cell_key]["risk_details"].append({
+                    "id": risk_id,
+                    "title": title,
+                    "severity": severity,
+                    "exposure": exposure
+                })
+
+    # Fallback: use context["risks"] if DataFrames not available
+    else:
+        for risk in context.get("risks", []):
+            risk_id = risk.get("id", "Unknown")
+            exposure = risk.get("exposure_millions", 0.0)
+
+            # Use ImpactLevel and LikelihoodLevel if available
+            impact = risk.get("impact_level", risk.get("severity", "Medium"))
+            likelihood = risk.get("likelihood_level", "Medium")
+
+            if impact not in impact_levels:
+                impact = "Medium"
+            if likelihood not in likelihood_levels:
+                likelihood = "Medium"
+
+            cell_key = f"{impact}_{likelihood}"
+            matrix[cell_key]["count"] += 1
+            matrix[cell_key]["exposure_millions"] += exposure
+            matrix[cell_key]["risk_ids"].append(risk_id)
+            matrix[cell_key]["risk_details"].append({
+                "id": risk_id,
+                "title": risk.get("title", "Unknown"),
+                "severity": risk.get("severity", "Medium"),
+                "exposure": exposure
+            })
+
+    # Round exposure values
+    for cell in matrix.values():
+        cell["exposure_millions"] = round(cell["exposure_millions"], 1)
+
+    return {
+        "cells": matrix,
+        "impact_levels": impact_levels,
+        "likelihood_levels": likelihood_levels
+    }
+
+
+def build_stakeholder_quadrants(context: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Build stakeholder landscape quadrants (Influence × Attitude) from real CSV data.
+
+    Classifies stakeholders using actual Influence (High/Medium/Low) and Attitude
+    (Champion/Advocate/Neutral/Blocker) columns from security_stakeholders.csv.
+
+    Quadrant mapping:
+    - High Influence + Champion/Advocate → Champions/Sponsors (top-right)
+    - High Influence + Blocker/Neutral → Blockers/Skeptics (top-left)
+    - Medium/Low Influence + Champion/Advocate → Advocates/Helpers (bottom-right)
+    - Medium/Low Influence + Blocker/Neutral → Observers/Detractors (bottom-left)
+
+    Args:
+        context: Full cyber context with stakeholders_raw and cyber_data_frames
+
+    Returns:
+        Dict with 4 quadrant keys, each containing list of stakeholder dicts
+    """
+    quadrants = {
+        "high_influence_supportive": [],    # Champions, Sponsors
+        "high_influence_resistant": [],     # Blockers, Skeptics
+        "low_influence_supportive": [],     # Advocates, Helpers
+        "low_influence_resistant": []       # Observers, Detractors
+    }
+
+    # Use DataFrame for accurate mapping if available
+    if "cyber_data_frames" in context:
+        stakeholder_df = context["cyber_data_frames"].get("security_stakeholders")
+
+        if stakeholder_df is not None and not stakeholder_df.empty:
+            for _, row in stakeholder_df.iterrows():
+                name = row.get("Name", "Unknown")
+                role = row.get("Role", "Unknown")
+                function = row.get("Function", "")
+                influence_raw = str(row.get("Influence", "Medium")).strip()
+                attitude_raw = str(row.get("Attitude", "Neutral")).strip()
+                notes = row.get("Notes", "")
+
+                # Normalize influence (case-insensitive)
+                influence = influence_raw.lower()
+                # Normalize attitude (case-insensitive)
+                attitude = attitude_raw.lower()
+
+                # Determine quadrant and tag based on CSV values
+                is_high_influence = (influence == "high")
+                is_supportive = (attitude in ["champion", "advocate"])
+                is_resistant = (attitude in ["blocker", "skeptic"])
+
+                if is_high_influence and is_supportive:
+                    tag = "Champion" if attitude == "champion" else "Sponsor"
+                    quadrant_key = "high_influence_supportive"
+                elif is_high_influence and is_resistant:
+                    tag = "Blocker"
+                    quadrant_key = "high_influence_resistant"
+                elif is_high_influence:  # Neutral high influence
+                    tag = "Sponsor"
+                    quadrant_key = "high_influence_supportive"
+                elif is_supportive:  # Medium/Low influence supportive
+                    tag = "Advocate"
+                    quadrant_key = "low_influence_supportive"
+                elif is_resistant:  # Medium/Low influence resistant
+                    tag = "Observer"
+                    quadrant_key = "low_influence_resistant"
+                else:  # Medium/Low influence neutral
+                    tag = "Observer"
+                    quadrant_key = "low_influence_supportive"
+
+                quadrants[quadrant_key].append({
+                    "name": name,
+                    "role": role,
+                    "function": function,
+                    "tag": tag,
+                    "influence": influence_raw,
+                    "attitude": attitude_raw,
+                    "notes": notes
+                })
+
+    # Fallback: use context["stakeholders_raw"] if DataFrames not available
+    else:
+        for stakeholder in context.get("stakeholders_raw", []):
+            name = stakeholder.get("name", "Unknown")
+            role = stakeholder.get("role", "Unknown")
+            influence = stakeholder.get("influence", "low").lower()
+            attitude = stakeholder.get("attitude", "neutral").lower()
+
+            # Determine tag based on influence + attitude combo
+            if influence == "high" and attitude in ["champion", "advocate"]:
+                tag = "Champion"
+                quadrant_key = "high_influence_supportive"
+            elif influence == "high" and attitude in ["blocker", "skeptic", "resistant"]:
+                tag = "Blocker"
+                quadrant_key = "high_influence_resistant"
+            elif influence in ["medium", "low"] and attitude in ["champion", "advocate"]:
+                tag = "Advocate"
+                quadrant_key = "low_influence_supportive"
+            elif influence in ["medium", "low"] and attitude in ["blocker", "skeptic", "resistant"]:
+                tag = "Observer"
+                quadrant_key = "low_influence_resistant"
+            else:
+                # Neutral attitude: classify by influence only
+                if influence == "high":
+                    tag = "Sponsor"
+                    quadrant_key = "high_influence_supportive"
+                else:
+                    tag = "Observer"
+                    quadrant_key = "low_influence_supportive"
+
+            quadrants[quadrant_key].append({
+                "name": name,
+                "role": role,
+                "tag": tag,
+                "influence": influence,
+                "attitude": attitude
+            })
+
+    return quadrants
+
+
+def calculate_cyber_ebitda_impact(context: Dict[str, Any], sla_breaches: List,
+                                   control_gaps: List, overdue_tasks: List) -> Dict[str, Any]:
+    """
+    Calculate modeled EBITDA impact from cybersecurity risks.
+
+    Estimates financial exposure across multiple categories:
+    - Regulatory/compliance penalties (fines, contract penalties, SOC2 suspension)
+    - Revenue at risk (downtime, customer churn, API breaches, SSO outages)
+    - Operational drag (firefighting incidents, emergency patching, forensics)
+    - Remediation investment (short-term capex/opex to close gaps)
+    - Residual risk (post-mitigation exposure that remains)
+
+    Args:
+        context: Full cyber context with risks, incidents, vulnerabilities, controls
+        sla_breaches: List of SLA-breached vulnerabilities
+        control_gaps: List of control gaps
+        overdue_tasks: List of overdue program tasks
+
+    Returns:
+        Dict with EBITDA components and waterfall values for charting
+    """
+
+    # === 1. Pull Financial Data from Risks ===
+    # security_financials.csv has: revenue_at_risk, regulatory_penalty, operational_cost, reputational_impact
+    total_revenue_risk = sum(r.get("revenue_at_risk_millions", 0.0) for r in context["risks"])
+    total_regulatory_penalty = sum(r.get("regulatory_penalty_millions", 0.0) for r in context["risks"])
+    total_operational_cost = sum(r.get("operational_cost_millions", 0.0) for r in context["risks"])
+    total_reputational_impact = sum(r.get("reputational_impact_millions", 0.0) for r in context["risks"])
+
+    # === 2. Calculate Remediation Investment ===
+    # Estimate cost to remediate based on backlog, SLA breaches, control gaps, critical incidents
+
+    # Cost per remediation item (industry estimates):
+    # - Overdue task: $150K avg (project management + dev time + testing)
+    # - SLA-breached CVE: $80K avg (emergency patching + regression testing + deployment)
+    # - Control gap: $200K avg (new tooling + process redesign + audit)
+    # - Critical incident: $250K avg (forensics + containment + remediation + compliance reporting)
+
+    remediation_overdue_tasks = len(overdue_tasks) * 0.15  # $150K per task
+    remediation_sla_breaches = len(sla_breaches) * 0.08   # $80K per CVE
+    remediation_control_gaps = len(control_gaps) * 0.20   # $200K per gap
+    remediation_critical_incidents = len([i for i in context["incidents"]
+                                          if i["severity"] == "Critical" and i["status"] == "Open"]) * 0.25  # $250K per incident
+
+    total_remediation_investment = (
+        remediation_overdue_tasks +
+        remediation_sla_breaches +
+        remediation_control_gaps +
+        remediation_critical_incidents
+    )
+
+    # === 3. Calculate Gross Exposure ===
+    # Sum of all negative impacts before any remediation
+    gross_exposure = (
+        total_revenue_risk +
+        total_regulatory_penalty +
+        total_operational_cost +
+        total_reputational_impact
+    )
+
+    # === 4. Calculate Residual Risk ===
+    # Assume remediation investment reduces risk by 70%, leaving 30% residual exposure
+    # This accounts for risks that cannot be fully eliminated (e.g., zero-day exploits, APT campaigns)
+    residual_risk_pct = 0.30
+    residual_risk = gross_exposure * residual_risk_pct
+
+    # === 5. Calculate Total EBITDA Impact ===
+    # Total impact = gross exposure + remediation investment - (exposure eliminated by remediation)
+    # Simplified: gross exposure + remediation investment, with residual risk as footnote
+    total_ebitda_impact = gross_exposure + total_remediation_investment
+
+    # === 6. Attribution by Security Domain ===
+    # Break down exposure by control area for CFO drill-down
+    risk_attribution = {}
+    for risk in context["risks"]:
+        domain = risk.get("domain", "Other")
+        exposure = risk.get("exposure_millions", 0.0)
+        if domain not in risk_attribution:
+            risk_attribution[domain] = 0.0
+        risk_attribution[domain] += exposure
+
+    # Round all values
+    risk_attribution = {k: round(v, 1) for k, v in risk_attribution.items()}
+
+    # === 7. Build Waterfall Components ===
+    # Waterfall shows: Baseline → Negative impacts → Positive mitigations → Final
+
+    # Baseline EBITDA (fictional company baseline before cyber risk)
+    # For demo purposes, assume a $100M baseline EBITDA
+    baseline_ebitda = 100.0
+
+    # Waterfall bars (in order):
+    waterfall_components = [
+        {"label": "Baseline EBITDA", "value": baseline_ebitda, "type": "baseline"},
+        {"label": "Regulatory Penalties", "value": -total_regulatory_penalty, "type": "negative"},
+        {"label": "Revenue at Risk", "value": -total_revenue_risk, "type": "negative"},
+        {"label": "Operational Drag", "value": -total_operational_cost, "type": "negative"},
+        {"label": "Reputational Impact", "value": -total_reputational_impact, "type": "negative"},
+        {"label": "Remediation Investment", "value": -total_remediation_investment, "type": "investment"},
+        {"label": "Risk-Adjusted EBITDA", "value": baseline_ebitda - total_ebitda_impact, "type": "final"}
+    ]
+
+    # === 8. Build Attribution Bullets ===
+    # Tie specific risks/domains to each waterfall bar
+    attribution_bullets = {
+        "regulatory_penalties": [
+            f"GDPR/CCPA fines from S3 exposure (SR-003): ${context['risks'][2].get('regulatory_penalty_millions', 0.0)}M" if len(context['risks']) > 2 else "GDPR/CCPA fines",
+            f"SOC2 suspension risk (SR-008): ${context['risks'][7].get('regulatory_penalty_millions', 0.0)}M" if len(context['risks']) > 7 else "SOC2 compliance gaps",
+            f"PCI-DSS penalties from API breach (SR-006): ${context['risks'][5].get('regulatory_penalty_millions', 0.0)}M" if len(context['risks']) > 5 else "PCI-DSS violations"
+        ],
+        "revenue_at_risk": [
+            f"Okta SSO downtime (SR-001): ${context['risks'][0].get('revenue_at_risk_millions', 0.0)}M/day" if context['risks'] else "SSO outages",
+            f"Customer churn from API breach (SR-006): ${context['risks'][5].get('revenue_at_risk_millions', 0.0)}M ARR" if len(context['risks']) > 5 else "API security",
+            f"Insider data exfiltration (SR-002): ${context['risks'][1].get('revenue_at_risk_millions', 0.0)}M liability" if len(context['risks']) > 1 else "Data breaches"
+        ],
+        "operational_drag": [
+            f"Emergency patching + forensics: ${total_operational_cost:.1f}M",
+            f"Incident response for {len([i for i in context['incidents'] if i['severity'] in ['Critical', 'High']])} high-severity incidents",
+            f"Extended MTTR due to SOC staffing gaps"
+        ],
+        "remediation_investment": [
+            f"Close {len(control_gaps)} control gaps: ${remediation_control_gaps:.1f}M",
+            f"Patch {len(sla_breaches)} SLA-breached CVEs: ${remediation_sla_breaches:.1f}M",
+            f"Complete {len(overdue_tasks)} overdue security tasks: ${remediation_overdue_tasks:.1f}M"
+        ]
+    }
+
+    return {
+        "baseline_ebitda_millions": round(baseline_ebitda, 1),
+        "revenue_risk_millions": round(total_revenue_risk, 1),
+        "compliance_penalties_millions": round(total_regulatory_penalty, 1),
+        "operational_drag_millions": round(total_operational_cost, 1),
+        "reputational_impact_millions": round(total_reputational_impact, 1),
+        "remediation_investment_millions": round(total_remediation_investment, 1),
+        "gross_exposure_millions": round(gross_exposure, 1),
+        "residual_risk_millions": round(residual_risk, 1),
+        "total_impact_millions": round(total_ebitda_impact, 1),
+        "risk_adjusted_ebitda_millions": round(baseline_ebitda - total_ebitda_impact, 1),
+        "risk_attribution": risk_attribution,
+        "waterfall_components": waterfall_components,
+        "attribution_bullets": attribution_bullets
+    }
+
+
+def compute_cyber_ebitda(cyber_data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
+    """
+    Compute enterprise-level EBITDA impact from cybersecurity risks using real CSV data.
+
+    This function provides granular financial modeling with 6 components:
+    1. Regulatory Penalties - GDPR, SOC2, PCI-DSS fines
+    2. Downtime Cost - Revenue loss from system outages
+    3. Fraud Risk - Financial loss from data breaches
+    4. Operational Drag (OpEx) - Incident response and firefighting costs
+    5. Remediation Investment - CapEx/OpEx to close gaps
+    6. Residual Risk - Post-mitigation exposure
+
+    Args:
+        cyber_data: Dictionary of pandas DataFrames from CSV sources
+                   Expected keys: security_risk_register, security_financials,
+                   security_incidents, security_controls, security_program_tasks,
+                   vulnerability_findings
+
+    Returns:
+        Dictionary with EBITDA impact breakdown, waterfall data, top risk drivers,
+        and 7-day investment recommendations
+    """
+    import numpy as np
+    from datetime import datetime, timedelta
+
+    # Baseline EBITDA (fictional company baseline before cyber risk)
+    # For demo purposes, use $100M baseline
+    baseline_ebitda = 100.0
+
+    # Initialize components
+    regulatory_penalties = 0.0
+    downtime_cost = 0.0
+    fraud_risk = 0.0
+    opex_drag = 0.0
+    remediation_investment = 0.0
+    residual_risk = 0.0
+
+    # Risk attribution tracking
+    top_risk_drivers = []
+
+    # ========================================================================
+    # 1. REGULATORY PENALTIES
+    # ========================================================================
+    if "security_financials" in cyber_data:
+        financials_df = cyber_data["security_financials"]
+
+        if not financials_df.empty and "RegulatoryPenaltyMillions" in financials_df.columns:
+            regulatory_penalties = financials_df["RegulatoryPenaltyMillions"].sum()
+
+            # Track top regulatory risks
+            if "security_risk_register" in cyber_data:
+                risk_df = cyber_data["security_risk_register"]
+                merged = risk_df.merge(financials_df, on="RiskID", how="left")
+
+                top_regulatory = merged.nlargest(3, "RegulatoryPenaltyMillions")[
+                    ["RiskID", "Title", "RegulatoryPenaltyMillions", "Severity"]
+                ]
+
+                for _, row in top_regulatory.iterrows():
+                    top_risk_drivers.append({
+                        "risk_id": row["RiskID"],
+                        "title": row["Title"],
+                        "category": "Regulatory Penalty",
+                        "impact_millions": round(row["RegulatoryPenaltyMillions"], 1),
+                        "severity": row["Severity"]
+                    })
+
+    # ========================================================================
+    # 2. DOWNTIME COST (Revenue at Risk)
+    # ========================================================================
+    if "security_financials" in cyber_data:
+        financials_df = cyber_data["security_financials"]
+
+        if not financials_df.empty and "RevenueAtRiskMillions" in financials_df.columns:
+            downtime_cost = financials_df["RevenueAtRiskMillions"].sum()
+
+            # Track top downtime risks
+            if "security_risk_register" in cyber_data:
+                risk_df = cyber_data["security_risk_register"]
+                merged = risk_df.merge(financials_df, on="RiskID", how="left")
+
+                top_downtime = merged.nlargest(3, "RevenueAtRiskMillions")[
+                    ["RiskID", "Title", "RevenueAtRiskMillions", "Severity"]
+                ]
+
+                for _, row in top_downtime.iterrows():
+                    if {"risk_id": row["RiskID"]} not in [{"risk_id": r["risk_id"]} for r in top_risk_drivers]:
+                        top_risk_drivers.append({
+                            "risk_id": row["RiskID"],
+                            "title": row["Title"],
+                            "category": "Downtime Cost",
+                            "impact_millions": round(row["RevenueAtRiskMillions"], 1),
+                            "severity": row["Severity"]
+                        })
+
+    # ========================================================================
+    # 3. FRAUD RISK (Data Breach / Reputational Impact)
+    # ========================================================================
+    if "security_financials" in cyber_data:
+        financials_df = cyber_data["security_financials"]
+
+        if not financials_df.empty and "ReputationalImpactMillions" in financials_df.columns:
+            fraud_risk = financials_df["ReputationalImpactMillions"].sum()
+
+            # Track top fraud/data breach risks
+            if "security_risk_register" in cyber_data:
+                risk_df = cyber_data["security_risk_register"]
+                merged = risk_df.merge(financials_df, on="RiskID", how="left")
+
+                top_fraud = merged.nlargest(3, "ReputationalImpactMillions")[
+                    ["RiskID", "Title", "ReputationalImpactMillions", "Severity"]
+                ]
+
+                for _, row in top_fraud.iterrows():
+                    if {"risk_id": row["RiskID"]} not in [{"risk_id": r["risk_id"]} for r in top_risk_drivers]:
+                        top_risk_drivers.append({
+                            "risk_id": row["RiskID"],
+                            "title": row["Title"],
+                            "category": "Fraud/Data Breach",
+                            "impact_millions": round(row["ReputationalImpactMillions"], 1),
+                            "severity": row["Severity"]
+                        })
+
+    # ========================================================================
+    # 4. OPERATIONAL DRAG (Incident Response OpEx)
+    # ========================================================================
+    if "security_financials" in cyber_data:
+        financials_df = cyber_data["security_financials"]
+
+        if not financials_df.empty and "OperationalCostMillions" in financials_df.columns:
+            opex_drag = financials_df["OperationalCostMillions"].sum()
+
+    # Add incident-specific operational costs
+    if "security_incidents" in cyber_data:
+        incident_df = cyber_data["security_incidents"]
+
+        if not incident_df.empty and "Severity" in incident_df.columns:
+            # Cost per incident (industry averages):
+            # Critical: $250K, High: $100K, Medium: $30K, Low: $10K
+            cost_map = {"Critical": 0.25, "High": 0.10, "Medium": 0.03, "Low": 0.01}
+
+            incident_costs = incident_df["Severity"].map(cost_map).sum()
+            opex_drag += incident_costs
+
+    # ========================================================================
+    # 5. REMEDIATION INVESTMENT (Short-term CapEx/OpEx)
+    # ========================================================================
+    # Cost to close control gaps, patch CVEs, complete overdue tasks
+
+    # A. Control gaps remediation
+    control_gap_cost = 0.0
+    if "security_controls" in cyber_data:
+        controls_df = cyber_data["security_controls"]
+
+        if not controls_df.empty and "MaturityScore" in controls_df.columns:
+            # Controls below 60% maturity considered gaps
+            control_gaps = len(controls_df[controls_df["MaturityScore"] < 60])
+            control_gap_cost = control_gaps * 0.20  # $200K per control gap
+
+    # B. Vulnerability remediation
+    vuln_remediation_cost = 0.0
+    if "vulnerability_findings" in cyber_data:
+        vuln_df = cyber_data["vulnerability_findings"]
+
+        if not vuln_df.empty and "Severity" in vuln_df.columns:
+            # Critical CVEs: $80K each, High: $40K, Medium: $15K
+            critical_vulns = len(vuln_df[vuln_df["Severity"] == "Critical"])
+            high_vulns = len(vuln_df[vuln_df["Severity"] == "High"])
+            medium_vulns = len(vuln_df[vuln_df["Severity"] == "Medium"])
+
+            vuln_remediation_cost = (critical_vulns * 0.08) + (high_vulns * 0.04) + (medium_vulns * 0.015)
+
+    # C. Overdue task completion
+    task_completion_cost = 0.0
+    if "security_program_tasks" in cyber_data:
+        tasks_df = cyber_data["security_program_tasks"]
+
+        if not tasks_df.empty and "Status" in tasks_df.columns:
+            # Overdue tasks (status != Completed)
+            overdue_tasks = len(tasks_df[tasks_df["Status"] != "Completed"])
+            task_completion_cost = overdue_tasks * 0.15  # $150K per task
+
+    remediation_investment = control_gap_cost + vuln_remediation_cost + task_completion_cost
+
+    # ========================================================================
+    # 6. RESIDUAL RISK (Post-Mitigation Exposure)
+    # ========================================================================
+    # Assume remediation eliminates 70% of risk, leaving 30% residual
+    gross_exposure = regulatory_penalties + downtime_cost + fraud_risk + opex_drag
+    residual_risk = gross_exposure * 0.30  # 30% residual after remediation
+
+    # ========================================================================
+    # 7. CALCULATE TOTALS
+    # ========================================================================
+    total_impact = (regulatory_penalties + downtime_cost + fraud_risk +
+                    opex_drag + remediation_investment)
+    risk_adjusted_ebitda = baseline_ebitda - total_impact
+
+    # ========================================================================
+    # 8. BUILD WATERFALL COMPONENTS
+    # ========================================================================
+    waterfall_components = [
+        {"label": "Baseline EBITDA", "value": baseline_ebitda, "type": "baseline"},
+        {"label": "Regulatory Penalties", "value": -regulatory_penalties, "type": "negative"},
+        {"label": "Downtime Cost", "value": -downtime_cost, "type": "negative"},
+        {"label": "Fraud Risk", "value": -fraud_risk, "type": "negative"},
+        {"label": "OpEx Drag", "value": -opex_drag, "type": "negative"},
+        {"label": "Remediation Investment", "value": -remediation_investment, "type": "investment"},
+        {"label": "Risk-Adjusted EBITDA", "value": risk_adjusted_ebitda, "type": "final"}
+    ]
+
+    # ========================================================================
+    # 9. TOP 3 FINANCIAL RISK DRIVERS (with RiskIDs)
+    # ========================================================================
+    # Sort by impact and take top 3
+    top_risk_drivers = sorted(top_risk_drivers, key=lambda x: x["impact_millions"], reverse=True)[:3]
+
+    # ========================================================================
+    # 10. 7-DAY INVESTMENT RECOMMENDATIONS
+    # ========================================================================
+    recommendations_7day = []
+
+    # Rec 1: Address highest-impact risk
+    if top_risk_drivers:
+        highest_risk = top_risk_drivers[0]
+        recommendations_7day.append({
+            "priority": 1,
+            "action": f"Mitigate {highest_risk['risk_id']}: {highest_risk['title']}",
+            "rationale": f"Highest financial exposure (${highest_risk['impact_millions']}M)",
+            "owner": "CISO",
+            "timeline": "Days 1-7"
+        })
+
+    # Rec 2: Close critical control gaps
+    if control_gap_cost > 0:
+        recommendations_7day.append({
+            "priority": 2,
+            "action": f"Close {int(control_gap_cost / 0.20)} critical control gaps",
+            "rationale": f"Reduces remediation investment by ${control_gap_cost:.1f}M",
+            "owner": "Security Engineering",
+            "timeline": "Days 1-14"
+        })
+
+    # Rec 3: Patch critical CVEs
+    if vuln_remediation_cost > 0 and "vulnerability_findings" in cyber_data:
+        vuln_df = cyber_data["vulnerability_findings"]
+        critical_count = len(vuln_df[vuln_df["Severity"] == "Critical"]) if not vuln_df.empty else 0
+        if critical_count > 0:
+            recommendations_7day.append({
+                "priority": 3,
+                "action": f"Emergency patch {critical_count} critical CVEs",
+                "rationale": "Prevents SLA breaches and reduces attack surface",
+                "owner": "Vulnerability Management",
+                "timeline": "Days 1-7"
+            })
+
+    # ========================================================================
+    # 11. RETURN COMPREHENSIVE EBITDA BREAKDOWN
+    # ========================================================================
+    return {
+        # Core components (6 categories)
+        "baseline_ebitda_millions": round(baseline_ebitda, 1),
+        "regulatory_penalties_millions": round(regulatory_penalties, 1),
+        "downtime_cost_millions": round(downtime_cost, 1),
+        "fraud_risk_millions": round(fraud_risk, 1),
+        "opex_drag_millions": round(opex_drag, 1),
+        "remediation_investment_millions": round(remediation_investment, 1),
+        "residual_risk_millions": round(residual_risk, 1),
+
+        # Aggregates
+        "gross_cyber_exposure_millions": round(gross_exposure, 1),
+        "total_impact_millions": round(total_impact, 1),
+        "risk_adjusted_ebitda_millions": round(risk_adjusted_ebitda, 1),
+
+        # Waterfall chart data
+        "waterfall_components": waterfall_components,
+
+        # Top 3 risk drivers with RiskIDs
+        "top_risk_drivers": top_risk_drivers,
+
+        # 7-day recommendations
+        "recommendations_7day": recommendations_7day,
+
+        # Breakdown for drill-down
+        "remediation_breakdown": {
+            "control_gaps_cost_millions": round(control_gap_cost, 1),
+            "vuln_remediation_cost_millions": round(vuln_remediation_cost, 1),
+            "task_completion_cost_millions": round(task_completion_cost, 1)
+        },
+
+        # Metadata
+        "computed_at": datetime.now().isoformat(),
+        "reduction_from_baseline_pct": round((total_impact / baseline_ebitda) * 100, 1)
+    }
+
+
+def compute_cyber_kpis(cyber_data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
+    """
+    Compute comprehensive cybersecurity KPIs from raw DataFrames.
+
+    This function calculates REAL metrics from CSV data rather than using generic text.
+    All calculations are DataFrame-based for accuracy and transparency.
+
+    Args:
+        cyber_data: Dictionary of pandas DataFrames keyed by source name
+                   Expected keys: security_risk_register, security_financials,
+                   vulnerability_findings, security_incidents, security_controls,
+                   security_program_tasks, security_stakeholders, compliance_status,
+                   security_metrics, threat_intel, security_exec_updates
+
+    Returns:
+        Dictionary of KPI categories with computed metrics
+    """
+    import numpy as np
+    from datetime import datetime, timedelta
+
+    kpis = {
+        "risk_kpis": {},
+        "incident_kpis": {},
+        "vulnerability_kpis": {},
+        "control_compliance_kpis": {},
+        "program_governance_kpis": {},
+        "computed_at": datetime.now().isoformat()
+    }
+
+    today = pd.Timestamp.now()
+
+    # ========================================================================
+    # A. RISK KPIs
+    # ========================================================================
+    if "security_risk_register" in cyber_data and "security_financials" in cyber_data:
+        risk_df = cyber_data["security_risk_register"]
+        financials_df = cyber_data["security_financials"]
+
+        # Total cyber risks by severity
+        if not risk_df.empty and "Severity" in risk_df.columns:
+            severity_counts = risk_df["Severity"].value_counts().to_dict()
+            kpis["risk_kpis"]["by_severity"] = severity_counts
+            kpis["risk_kpis"]["total_risks"] = len(risk_df)
+
+        # Total financial exposure
+        if not financials_df.empty and "ExposureMillions" in financials_df.columns:
+            total_exposure = financials_df["ExposureMillions"].sum()
+            kpis["risk_kpis"]["total_exposure_millions"] = round(total_exposure, 1)
+
+            # Breakdown by category
+            if "RevenueAtRiskMillions" in financials_df.columns:
+                kpis["risk_kpis"]["revenue_at_risk_millions"] = round(financials_df["RevenueAtRiskMillions"].sum(), 1)
+            if "RegulatoryPenaltyMillions" in financials_df.columns:
+                kpis["risk_kpis"]["regulatory_penalty_millions"] = round(financials_df["RegulatoryPenaltyMillions"].sum(), 1)
+            if "OperationalCostMillions" in financials_df.columns:
+                kpis["risk_kpis"]["operational_cost_millions"] = round(financials_df["OperationalCostMillions"].sum(), 1)
+            if "ReputationalImpactMillions" in financials_df.columns:
+                kpis["risk_kpis"]["reputational_impact_millions"] = round(financials_df["ReputationalImpactMillions"].sum(), 1)
+
+        # Overdue risks (TargetDate < today)
+        if not risk_df.empty and "TargetDate" in risk_df.columns:
+            risk_df["TargetDate_parsed"] = pd.to_datetime(risk_df["TargetDate"], format="%m/%d/%y", errors='coerce')
+            overdue_risks = risk_df[risk_df["TargetDate_parsed"] < today]
+            kpis["risk_kpis"]["overdue_count"] = len(overdue_risks)
+            if len(overdue_risks) > 0:
+                kpis["risk_kpis"]["overdue_risk_ids"] = overdue_risks["RiskID"].tolist()
+
+        # Status distribution
+        if not risk_df.empty and "Status" in risk_df.columns:
+            status_counts = risk_df["Status"].value_counts().to_dict()
+            kpis["risk_kpis"]["by_status"] = status_counts
+
+    # ========================================================================
+    # B. INCIDENT KPIs
+    # ========================================================================
+    if "security_incidents" in cyber_data:
+        incident_df = cyber_data["security_incidents"]
+
+        if not incident_df.empty:
+            # Incident counts by severity
+            if "Severity" in incident_df.columns:
+                severity_counts = incident_df["Severity"].value_counts().to_dict()
+                kpis["incident_kpis"]["by_severity"] = severity_counts
+                kpis["incident_kpis"]["total_incidents"] = len(incident_df)
+
+            # MTTD (Mean Time to Detect) - calculated from DetectedAt - IncidentStart if available
+            # For this dataset, we don't have IncidentStart, so we'll use a proxy or skip
+            # Let's calculate from available time_to_detect_hours if it exists
+            if "MTTR_Hours" in incident_df.columns:
+                # MTTR = mean(ResolvedAt - DetectedAt) - this is already in MTTR_Hours column
+                avg_mttr = incident_df["MTTR_Hours"].mean()
+                kpis["incident_kpis"]["mttr_hours"] = round(avg_mttr, 1)
+
+                # MTTR by severity
+                mttr_by_severity = incident_df.groupby("Severity")["MTTR_Hours"].mean().to_dict()
+                kpis["incident_kpis"]["mttr_by_severity"] = {k: round(v, 1) for k, v in mttr_by_severity.items()}
+
+            # Count of currently open incidents
+            if "Status" in incident_df.columns:
+                open_incidents = incident_df[incident_df["Status"].str.lower().isin(["open", "investigating", "in progress"])]
+                kpis["incident_kpis"]["open_count"] = len(open_incidents)
+
+                if len(open_incidents) > 0 and "IncidentID" in incident_df.columns:
+                    kpis["incident_kpis"]["open_incident_ids"] = open_incidents["IncidentID"].tolist()
+
+            # Data exfiltration incidents
+            if "DataExfiltrated" in incident_df.columns:
+                exfiltration_count = incident_df[incident_df["DataExfiltrated"].str.lower() != "no"].shape[0]
+                kpis["incident_kpis"]["data_exfiltration_count"] = exfiltration_count
+
+    # ========================================================================
+    # C. VULNERABILITY KPIs
+    # ========================================================================
+    if "vulnerability_findings" in cyber_data:
+        vuln_df = cyber_data["vulnerability_findings"]
+
+        if not vuln_df.empty:
+            # Count of Critical findings with DaysOpen > 30
+            if "Severity" in vuln_df.columns and "DaysOpen" in vuln_df.columns:
+                critical_old = vuln_df[(vuln_df["Severity"] == "Critical") & (vuln_df["DaysOpen"] > 30)]
+                kpis["vulnerability_kpis"]["critical_over_30days"] = len(critical_old)
+
+            # SLA breach rate
+            if "SLAStatus" in vuln_df.columns:
+                total_vulns = len(vuln_df)
+                sla_breaches = vuln_df[vuln_df["SLAStatus"] == "BREACH"]
+                breach_count = len(sla_breaches)
+                breach_rate = (breach_count / total_vulns * 100) if total_vulns > 0 else 0
+                kpis["vulnerability_kpis"]["sla_breach_count"] = breach_count
+                kpis["vulnerability_kpis"]["sla_breach_rate_pct"] = round(breach_rate, 1)
+                kpis["vulnerability_kpis"]["sla_compliance_rate_pct"] = round(100 - breach_rate, 1)
+
+            # Distribution of vulnerabilities by severity
+            if "Severity" in vuln_df.columns:
+                severity_counts = vuln_df["Severity"].value_counts().to_dict()
+                kpis["vulnerability_kpis"]["by_severity"] = severity_counts
+                kpis["vulnerability_kpis"]["total_vulnerabilities"] = len(vuln_df)
+
+            # Open vulnerabilities
+            if "Status" in vuln_df.columns:
+                open_vulns = vuln_df[vuln_df["Status"] == "Open"]
+                kpis["vulnerability_kpis"]["open_count"] = len(open_vulns)
+
+            # Vulnerabilities with active exploits
+            if "ExploitInWild" in vuln_df.columns:
+                active_exploits = vuln_df[vuln_df["ExploitInWild"].str.lower() == "yes"]
+                kpis["vulnerability_kpis"]["active_exploit_count"] = len(active_exploits)
+
+            # Average CVSS score
+            if "CVSS" in vuln_df.columns:
+                avg_cvss = vuln_df["CVSS"].mean()
+                kpis["vulnerability_kpis"]["avg_cvss_score"] = round(avg_cvss, 2)
+
+            # Average days open
+            if "DaysOpen" in vuln_df.columns:
+                avg_days = vuln_df["DaysOpen"].mean()
+                kpis["vulnerability_kpis"]["avg_days_open"] = round(avg_days, 1)
+
+    # ========================================================================
+    # D. CONTROL/COMPLIANCE KPIs
+    # ========================================================================
+    if "security_controls" in cyber_data:
+        control_df = cyber_data["security_controls"]
+
+        if not control_df.empty and "MaturityScore" in control_df.columns:
+            # Controls categorized as Healthy (>=85%), At Risk (60-84%), Failing (<60%)
+            healthy = control_df[control_df["MaturityScore"] >= 85]
+            at_risk = control_df[(control_df["MaturityScore"] >= 60) & (control_df["MaturityScore"] < 85)]
+            failing = control_df[control_df["MaturityScore"] < 60]
+
+            kpis["control_compliance_kpis"]["healthy_count"] = len(healthy)
+            kpis["control_compliance_kpis"]["at_risk_count"] = len(at_risk)
+            kpis["control_compliance_kpis"]["failing_count"] = len(failing)
+            kpis["control_compliance_kpis"]["total_controls"] = len(control_df)
+
+            # Average maturity score
+            avg_maturity = control_df["MaturityScore"].mean()
+            kpis["control_compliance_kpis"]["avg_maturity_pct"] = round(avg_maturity, 1)
+
+            # Control gaps
+            if "GapFlag" in control_df.columns:
+                gaps = control_df[control_df["GapFlag"].str.lower() == "yes"]
+                kpis["control_compliance_kpis"]["gap_count"] = len(gaps)
+
+            # Maturity by CISSP domain
+            if "CISPDomain" in control_df.columns:
+                domain_maturity = control_df.groupby("CISPDomain")["MaturityScore"].agg(["mean", "count"]).to_dict()
+                kpis["control_compliance_kpis"]["by_cissp_domain"] = {
+                    domain: {
+                        "avg_maturity": round(domain_maturity["mean"][domain], 1),
+                        "control_count": int(domain_maturity["count"][domain])
+                    }
+                    for domain in domain_maturity["mean"].keys()
+                }
+
+                # Domains with largest gaps (lowest maturity)
+                domain_avg = control_df.groupby("CISPDomain")["MaturityScore"].mean().sort_values()
+                top_gap_domains = domain_avg.head(3).to_dict()
+                kpis["control_compliance_kpis"]["top_gap_domains"] = {
+                    k: round(v, 1) for k, v in top_gap_domains.items()
+                }
+
+    # Compliance scores from compliance_status
+    if "compliance_status" in cyber_data:
+        compliance_df = cyber_data["compliance_status"]
+
+        if not compliance_df.empty:
+            # Overall compliance score (% of passing controls across all frameworks)
+            if "Compliant" in compliance_df.columns and "ControlCount" in compliance_df.columns:
+                total_controls = compliance_df["ControlCount"].sum()
+                total_compliant = compliance_df["Compliant"].sum()
+                compliance_pct = (total_compliant / total_controls * 100) if total_controls > 0 else 0
+                kpis["control_compliance_kpis"]["overall_compliance_pct"] = round(compliance_pct, 1)
+
+            # Compliance by framework
+            if "Framework" in compliance_df.columns:
+                framework_compliance = compliance_df.groupby("Framework").agg({
+                    "Compliant": "sum",
+                    "NonCompliant": "sum",
+                    "ControlCount": "sum",
+                    "MaturityScore": "mean"
+                }).to_dict()
+
+                framework_summary = {}
+                for framework in framework_compliance["Compliant"].keys():
+                    total = framework_compliance["ControlCount"][framework]
+                    compliant = framework_compliance["Compliant"][framework]
+                    compliance_pct = (compliant / total * 100) if total > 0 else 0
+                    framework_summary[framework] = {
+                        "compliance_pct": round(compliance_pct, 1),
+                        "compliant_count": int(compliant),
+                        "total_count": int(total),
+                        "maturity_score": round(framework_compliance["MaturityScore"][framework], 1)
+                    }
+
+                kpis["control_compliance_kpis"]["by_framework"] = framework_summary
+
+    # ========================================================================
+    # E. PROGRAM & GOVERNANCE KPIs
+    # ========================================================================
+    if "security_program_tasks" in cyber_data:
+        task_df = cyber_data["security_program_tasks"]
+
+        if not task_df.empty:
+            total_tasks = len(task_df)
+
+            # % tasks overdue
+            if "Status" in task_df.columns:
+                overdue_tasks = task_df[task_df["Status"] == "Overdue"]
+                overdue_count = len(overdue_tasks)
+                overdue_pct = (overdue_count / total_tasks * 100) if total_tasks > 0 else 0
+                kpis["program_governance_kpis"]["overdue_count"] = overdue_count
+                kpis["program_governance_kpis"]["overdue_pct"] = round(overdue_pct, 1)
+
+                # Task status distribution
+                status_counts = task_df["Status"].value_counts().to_dict()
+                kpis["program_governance_kpis"]["by_status"] = status_counts
+
+            kpis["program_governance_kpis"]["total_tasks"] = total_tasks
+
+            # Top 3 blocking tasks (by DaysOverdue or BlockedBy)
+            if "BlockedBy" in task_df.columns:
+                blocked_tasks = task_df[task_df["BlockedBy"].notna() & (task_df["BlockedBy"] != "None")]
+                kpis["program_governance_kpis"]["blocked_count"] = len(blocked_tasks)
+
+                if len(blocked_tasks) > 0 and "Title" in task_df.columns and "DaysOverdue" in task_df.columns:
+                    # Sort by DaysOverdue descending
+                    top_blocked = blocked_tasks.nlargest(3, "DaysOverdue")[["TaskID", "Title", "BlockedBy", "DaysOverdue"]]
+                    kpis["program_governance_kpis"]["top_blocked_tasks"] = top_blocked.to_dict('records')
+
+    # Stakeholder sentiment from security_exec_updates
+    if "security_exec_updates" in cyber_data:
+        updates_df = cyber_data["security_exec_updates"]
+
+        if not updates_df.empty and "Sentiment" in updates_df.columns:
+            sentiment_counts = updates_df["Sentiment"].value_counts().to_dict()
+            total_updates = len(updates_df)
+
+            kpis["program_governance_kpis"]["stakeholder_sentiment"] = {
+                "positive_count": sentiment_counts.get("Positive", 0),
+                "neutral_count": sentiment_counts.get("Neutral", 0),
+                "negative_count": sentiment_counts.get("Negative", 0),
+                "positive_pct": round((sentiment_counts.get("Positive", 0) / total_updates * 100), 1) if total_updates > 0 else 0,
+                "neutral_pct": round((sentiment_counts.get("Neutral", 0) / total_updates * 100), 1) if total_updates > 0 else 0,
+                "negative_pct": round((sentiment_counts.get("Negative", 0) / total_updates * 100), 1) if total_updates > 0 else 0
+            }
+
+    # Security metrics trends (from security_metrics.csv)
+    if "security_metrics" in cyber_data:
+        metrics_df = cyber_data["security_metrics"]
+
+        if not metrics_df.empty:
+            # Get latest week
+            if "week_start" in metrics_df.columns:
+                latest_week = metrics_df.iloc[-1]
+
+                # Extract key metrics from latest week
+                metric_fields = [
+                    "critical_vulns_open", "high_vulns_open", "mean_time_to_patch_days",
+                    "sla_breach_count", "incidents_detected", "incidents_resolved",
+                    "mean_time_to_resolve_hours", "controls_effective_pct",
+                    "compliance_score_pct", "security_debt_count"
+                ]
+
+                kpis["program_governance_kpis"]["latest_metrics"] = {}
+                for field in metric_fields:
+                    if field in metrics_df.columns:
+                        kpis["program_governance_kpis"]["latest_metrics"][field] = float(latest_week[field])
+
+                # Trend analysis (last 4 weeks)
+                if len(metrics_df) >= 4:
+                    recent_4weeks = metrics_df.tail(4)
+
+                    # Calculate trends
+                    if "security_debt_count" in metrics_df.columns:
+                        debt_trend = recent_4weeks["security_debt_count"].tolist()
+                        debt_change = debt_trend[-1] - debt_trend[0]
+                        debt_change_pct = (debt_change / debt_trend[0] * 100) if debt_trend[0] > 0 else 0
+                        kpis["program_governance_kpis"]["security_debt_trend"] = {
+                            "values": [int(x) for x in debt_trend],
+                            "change": int(debt_change),
+                            "change_pct": round(debt_change_pct, 1)
+                        }
+
+                    if "mean_time_to_patch_days" in metrics_df.columns:
+                        mttp_trend = recent_4weeks["mean_time_to_patch_days"].tolist()
+                        kpis["program_governance_kpis"]["mttp_trend"] = {
+                            "values": [round(x, 1) for x in mttp_trend],
+                            "current": round(mttp_trend[-1], 1)
+                        }
+
+    return kpis
+
+
+def build_cyber_kpis(context: Dict[str, Any], sla_breaches: List, control_gaps: List, overdue_tasks: List) -> List[Dict[str, Any]]:
+    """
+    Build executive KPI tiles for Cyber PMO dashboard.
+
+    Generates 6 KPI tiles with label, value, and subtext for display in the KPI strip.
+
+    Args:
+        context: Full cyber context with vulnerabilities, incidents, controls, metrics
+        sla_breaches: List of SLA-breached vulnerabilities
+        control_gaps: List of control gaps
+        overdue_tasks: List of overdue program tasks
+
+    Returns:
+        List of KPI dicts with keys: label, value, subtext, severity
+    """
+    kpis = []
+
+    # KPI 1: Critical Vulnerabilities Open
+    critical_vulns_open = len([v for v in context["vulnerabilities"] if v["severity"] == "Critical" and v["status"] == "Open"])
+    critical_sla_breach = len([v for v in sla_breaches if v["severity"] == "Critical"])
+    kpis.append({
+        "label": "Critical Vulns Open",
+        "value": str(critical_vulns_open),
+        "subtext": f"{critical_sla_breach} in SLA breach",
+        "severity": "critical" if critical_sla_breach > 0 else "warning"
+    })
+
+    # KPI 2: Mean Time to Detect (MTTD) - from most recent metrics
+    if context["security_metrics"]:
+        latest_metrics = context["security_metrics"][-1]  # Most recent week
+        # Calculate average detection time from incidents
+        incidents_with_detection = [i for i in context["incidents"] if i.get("time_to_detect_hours", 0) > 0]
+        if incidents_with_detection:
+            avg_mttd_hours = sum(i["time_to_detect_hours"] for i in incidents_with_detection) / len(incidents_with_detection)
+            mttd_value = f"{avg_mttd_hours:.1f}h"
+            mttd_subtext = "avg detection time"
+        else:
+            mttd_value = "N/A"
+            mttd_subtext = "no incidents tracked"
+    else:
+        mttd_value = "N/A"
+        mttd_subtext = "no metrics available"
+
+    kpis.append({
+        "label": "Mean Time to Detect",
+        "value": mttd_value,
+        "subtext": mttd_subtext,
+        "severity": "info"
+    })
+
+    # KPI 3: Mean Time to Respond (MTTR)
+    if context["security_metrics"]:
+        latest_metrics = context["security_metrics"][-1]
+        mttr_hours = float(latest_metrics.get("mean_time_to_resolve_hours", 0))
+        mttr_target = 24  # Target: < 24 hours for high severity
+
+        kpis.append({
+            "label": "Mean Time to Respond",
+            "value": f"{mttr_hours:.1f}h",
+            "subtext": f"Target: <{mttr_target}h" if mttr_hours <= mttr_target else f"⚠️ {mttr_hours - mttr_target:.1f}h over target",
+            "severity": "ok" if mttr_hours <= mttr_target else "warning"
+        })
+    else:
+        kpis.append({
+            "label": "Mean Time to Respond",
+            "value": "N/A",
+            "subtext": "no metrics available",
+            "severity": "info"
+        })
+
+    # KPI 4: High-Severity Incidents Open
+    high_severity_incidents_open = len([i for i in context["incidents"] if i["severity"] in ["Critical", "High"] and i["status"] == "Open"])
+    kpis.append({
+        "label": "High-Severity Incidents",
+        "value": str(high_severity_incidents_open),
+        "subtext": "open (Critical + High)",
+        "severity": "critical" if high_severity_incidents_open > 2 else "ok"
+    })
+
+    # KPI 5: Patch Aging (> 30 days)
+    vulns_over_30_days = len([v for v in context["vulnerabilities"] if int(v.get("DaysOpen", 0)) > 30])
+    vulns_over_90_days = len([v for v in context["vulnerabilities"] if int(v.get("DaysOpen", 0)) > 90])
+    kpis.append({
+        "label": "Patch Aging > 30 Days",
+        "value": str(vulns_over_30_days),
+        "subtext": f"{vulns_over_90_days} over 90 days",
+        "severity": "warning" if vulns_over_30_days > 5 else "ok"
+    })
+
+    # KPI 6: Control Health Percentage
+    total_controls = len(context["controls"])
+    if total_controls > 0:
+        # Controls are "healthy" if maturity >= 85% and no gaps
+        healthy_controls = len([c for c in context["controls"] if float(c.get("MaturityScore", 0)) >= 85 and c.get("HasGap") == "No"])
+        control_health_pct = (healthy_controls / total_controls) * 100
+
+        kpis.append({
+            "label": "Control Health",
+            "value": f"{control_health_pct:.0f}%",
+            "subtext": f"{healthy_controls}/{total_controls} controls healthy",
+            "severity": "ok" if control_health_pct >= 70 else "warning"
+        })
+    else:
+        kpis.append({
+            "label": "Control Health",
+            "value": "N/A",
+            "subtext": "no controls tracked",
+            "severity": "info"
+        })
+
+    return kpis
+
+
+def build_cyber_risk_program_context(config: Dict[str, Any], scenario: str) -> Dict[str, Any]:
+    """
+    Build structured context for Day 3 Cyber PMO scenario.
+
+    Transforms raw CSV data into analyzed, structured cybersecurity program context with:
+    - Security risks (merged with financials)
+    - Vulnerability findings with SLA breach analysis
+    - Security incidents with MTTR tracking
+    - Control effectiveness gaps
+    - Security program task backlog
+    - Threat intelligence correlation
+    - Stakeholder influence mapping
+    - Compliance posture
+
+    Args:
+        config: Application configuration
+        scenario: Scenario name (e.g., 'sentient_cyber_pmo')
+
+    Returns:
+        Structured context dict ready for cybersecurity analytics
+    """
+    print(f"\n🔬 Building structured cybersecurity context for scenario: {scenario}...")
+
+    # Load scenario configuration
+    scenario_config = config.get("scenarios", {}).get(scenario)
+    if not scenario_config:
+        raise ValueError(f"Scenario '{scenario}' not found in config")
+
+    data_sources = scenario_config.get("data_sources", {})
+    scenario_title = scenario_config.get("title", scenario)
+    analytics_config = scenario_config.get("analytics", {})
+
+    # Initialize context structure
+    context = {
+        "scenario": scenario,
+        "scenario_title": scenario_title,
+        "risks": [],
+        "vulnerabilities": [],
+        "incidents": [],
+        "controls": [],
+        "program_tasks": [],
+        "stakeholders_raw": [],
+        "threat_intel": [],
+        "compliance_status": [],
+        "security_metrics": [],
+        "exec_updates": [],
+        # Computed analytics
+        "top_risks": [],
+        "control_gaps": [],
+        "security_debt": {},
+        "incident_patterns": [],
+        "vuln_hotspots": [],
+        "stakeholder_map": {},
+        "program_backlog": {},
+        "ebitda_impact_components": {},
+        # Raw DataFrames for advanced analytics
+        "cyber_data_frames": {}
+    }
+
+    # Helper function to load CSV data with DataFrame storage and validation
+    def load_csv_data_with_df(source_key: str, required_columns: List[str] = None) -> tuple[List[Dict[str, Any]], pd.DataFrame]:
+        """
+        Load CSV data using pandas, validate structure, and return both dict list and DataFrame.
+
+        Args:
+            source_key: Key for data source in config
+            required_columns: List of required column names for validation
+
+        Returns:
+            Tuple of (list of row dicts, pandas DataFrame)
+        """
+        source_config = data_sources.get(source_key, {})
+        if not source_config.get("enabled", False):
+            return [], pd.DataFrame()
+
+        path = source_config.get("path", "")
+        if not path:
+            print(f"  ✗ No path configured for {source_key}")
+            return [], pd.DataFrame()
+
+        try:
+            # Load with pandas for better validation
+            # Use quotechar and escapechar to handle CSVs with commas in quoted fields
+            df = pd.read_csv(path, quotechar='"', escapechar='\\', on_bad_lines='warn')
+
+            # Validate required columns
+            if required_columns:
+                missing_cols = [col for col in required_columns if col not in df.columns]
+                if missing_cols:
+                    print(f"  ⚠ Missing columns in {source_key}: {missing_cols}")
+
+            # Convert to list of dicts
+            rows = df.to_dict('records')
+            print(f"  ✓ Loaded {source_key}: {len(rows)} records")
+
+            # Store DataFrame in context
+            context["cyber_data_frames"][source_key] = df
+
+            return rows, df
+        except FileNotFoundError:
+            print(f"  ✗ File not found for {source_key}: {path}")
+            return [], pd.DataFrame()
+        except pd.errors.ParserError as e:
+            print(f"  ✗ CSV parsing error for {source_key}: {e}")
+            print(f"     Try checking for malformed rows or unescaped commas in: {path}")
+            return [], pd.DataFrame()
+        except Exception as e:
+            print(f"  ✗ Failed to load {source_key}: {e}")
+            return [], pd.DataFrame()
+
+    # Legacy helper for compatibility with old load pattern
+    def load_csv_data(source_key: str) -> List[Dict[str, Any]]:
+        """Load CSV data using CSVIngestor (legacy method)."""
+        rows, _ = load_csv_data_with_df(source_key)
+        return rows
+
+    # Helper for safe numeric conversion
+    def safe_float(value, default=0.0):
+        try:
+            return float(value) if value else default
+        except (ValueError, TypeError):
+            return default
+
+    def safe_int(value, default=0):
+        try:
+            return int(value) if value else default
+        except (ValueError, TypeError):
+            return default
+
+    # === 1. Load Security Risk Register & Financials ===
+    print("\n  📋 Loading security risks and financials...")
+    risk_register_rows, risk_register_df = load_csv_data_with_df(
+        "security_risk_register",
+        required_columns=["RiskID", "Title", "Domain", "Severity", "Owner", "Status"]
+    )
+    risk_financials_rows, risk_financials_df = load_csv_data_with_df(
+        "security_financials",
+        required_columns=["RiskID", "ExposureMillions"]
+    )
+
+    # Validate and convert numeric columns in financials DataFrame
+    if not risk_financials_df.empty:
+        numeric_cols = ["ExposureMillions", "RevenueAtRiskMillions", "RegulatoryPenaltyMillions",
+                       "OperationalCostMillions", "ReputationalImpactMillions"]
+        for col in numeric_cols:
+            if col in risk_financials_df.columns:
+                risk_financials_df[col] = pd.to_numeric(risk_financials_df[col], errors='coerce').fillna(0.0)
+
+    # Create lookup for financials
+    financials_by_risk_id = {
+        row.get("RiskID"): row for row in risk_financials_rows
+    }
+
+    # Merge risks with financials
+    for risk_row in risk_register_rows:
+        risk_id = risk_row.get("RiskID", "")
+        financial_data = financials_by_risk_id.get(risk_id, {})
+
+        exposure_millions = safe_float(financial_data.get("ExposureMillions"))
+
+        merged_risk = {
+            "id": risk_id,
+            "title": risk_row.get("Title", ""),
+            "domain": risk_row.get("Domain", ""),
+            "severity": risk_row.get("Severity", ""),
+            "impact_level": risk_row.get("ImpactLevel", ""),
+            "likelihood_level": risk_row.get("LikelihoodLevel", ""),
+            "strategy": risk_row.get("Strategy", ""),
+            "plan": risk_row.get("Plan", ""),
+            "owner": risk_row.get("Owner", ""),
+            "target_date": risk_row.get("TargetDate", ""),
+            "control_area": risk_row.get("ControlArea", ""),
+            "status": risk_row.get("Status", ""),
+            "exposure_millions": exposure_millions,
+            "total_exposure": exposure_millions * 1_000_000,
+            "revenue_at_risk_millions": safe_float(financial_data.get("RevenueAtRiskMillions")),
+            "regulatory_penalty_millions": safe_float(financial_data.get("RegulatoryPenaltyMillions")),
+            "operational_cost_millions": safe_float(financial_data.get("OperationalCostMillions")),
+            "reputational_impact_millions": safe_float(financial_data.get("ReputationalImpactMillions")),
+            "financial_notes": financial_data.get("notes", "")
+        }
+
+        context["risks"].append(merged_risk)
+
+    print(f"    ✓ Merged {len(context['risks'])} security risks with financials")
+
+    # === 2. Load Vulnerabilities & Compute SLA Breaches ===
+    print("\n  🔍 Loading vulnerabilities and analyzing SLA compliance...")
+    vuln_rows, vuln_df = load_csv_data_with_df(
+        "vulnerability_findings",
+        required_columns=["FindingID", "Asset", "CVE", "CVSS", "Severity", "Status", "DaysOpen"]
+    )
+
+    # Validate and convert numeric/date columns in vulnerabilities DataFrame
+    if not vuln_df.empty:
+        # Convert numeric columns
+        if "CVSS" in vuln_df.columns:
+            vuln_df["CVSS"] = pd.to_numeric(vuln_df["CVSS"], errors='coerce').fillna(0.0)
+        if "DaysOpen" in vuln_df.columns:
+            vuln_df["DaysOpen"] = pd.to_numeric(vuln_df["DaysOpen"], errors='coerce').fillna(0).astype(int)
+
+    vuln_config = analytics_config.get("vulnerability", {})
+    sla_critical_days = vuln_config.get("sla_critical_days", 7)
+    sla_high_days = vuln_config.get("sla_high_days", 30)
+    sla_medium_days = vuln_config.get("sla_medium_days", 90)
+
+    sla_breaches = []
+    for vuln_row in vuln_rows:
+        severity = vuln_row.get("Severity", "")
+        days_open = safe_int(vuln_row.get("DaysOpen"))
+        sla_status = vuln_row.get("SLAStatus", "")
+
+        # Determine if SLA is breached
+        is_breach = False
+        if severity == "Critical" and days_open > sla_critical_days:
+            is_breach = True
+        elif severity == "High" and days_open > sla_high_days:
+            is_breach = True
+        elif severity == "Medium" and days_open > sla_medium_days:
+            is_breach = True
+
+        vuln_dict = {
+            "finding_id": vuln_row.get("FindingID", ""),
+            "asset": vuln_row.get("Asset", ""),
+            "cve": vuln_row.get("CVE", ""),
+            "cvss": safe_float(vuln_row.get("CVSS")),
+            "severity": severity,
+            "status": vuln_row.get("Status", ""),
+            "sla_status": sla_status,
+            "owner": vuln_row.get("Owner", ""),
+            "days_open": days_open,
+            "patch_available": vuln_row.get("PatchAvailable", ""),
+            "exploit_in_wild": vuln_row.get("ExploitInWild", ""),
+            "is_sla_breach": is_breach
+        }
+
+        context["vulnerabilities"].append(vuln_dict)
+
+        if is_breach or sla_status == "BREACH":
+            sla_breaches.append(vuln_dict)
+
+    print(f"    ✓ Loaded {len(context['vulnerabilities'])} vulnerabilities")
+    print(f"    ⚠ Identified {len(sla_breaches)} SLA breaches")
+
+    # === 3. Load Security Incidents & Compute MTTR Stats ===
+    print("\n  🚨 Loading security incidents and analyzing MTTR...")
+    incident_rows, incident_df = load_csv_data_with_df(
+        "security_incidents",
+        required_columns=["IncidentID", "Type", "Severity", "Status", "MTTR_Hours"]
+    )
+
+    # Validate and convert numeric/date columns in incidents DataFrame
+    if not incident_df.empty:
+        # Convert numeric columns
+        if "MTTR_Hours" in incident_df.columns:
+            incident_df["MTTR_Hours"] = pd.to_numeric(incident_df["MTTR_Hours"], errors='coerce').fillna(0.0)
+        # Convert date columns
+        date_cols = ["DetectedAt", "ResolvedAt"]
+        for col in date_cols:
+            if col in incident_df.columns:
+                incident_df[col] = pd.to_datetime(incident_df[col], errors='coerce')
+
+    incident_config = analytics_config.get("incident", {})
+    critical_mttr_target = incident_config.get("critical_mttr_hours", 4)
+    high_mttr_target = incident_config.get("high_mttr_hours", 24)
+
+    for incident_row in incident_rows:
+        severity = incident_row.get("Severity", "")
+        mttr_hours = safe_float(incident_row.get("MTTR_Hours"))
+
+        # Check if MTTR exceeds target
+        mttr_exceeded = False
+        if severity == "Critical" and mttr_hours > critical_mttr_target:
+            mttr_exceeded = True
+        elif severity == "High" and mttr_hours > high_mttr_target:
+            mttr_exceeded = True
+
+        incident_dict = {
+            "incident_id": incident_row.get("IncidentID", ""),
+            "type": incident_row.get("Type", ""),
+            "severity": severity,
+            "system": incident_row.get("System", ""),
+            "detected_at": incident_row.get("DetectedAt", ""),
+            "resolved_at": incident_row.get("ResolvedAt", ""),
+            "mttr_hours": mttr_hours,
+            "root_cause": incident_row.get("RootCause", ""),
+            "status": incident_row.get("Status", ""),
+            "impacted_users": incident_row.get("ImpactedUsers", ""),
+            "data_exfiltrated": incident_row.get("DataExfiltrated", ""),
+            "mttr_exceeded": mttr_exceeded
+        }
+
+        context["incidents"].append(incident_dict)
+
+    print(f"    ✓ Loaded {len(context['incidents'])} security incidents")
+
+    # === 4. Load Security Controls & Identify Gaps ===
+    print("\n  🛡️ Loading security controls and identifying gaps...")
+    control_rows, control_df = load_csv_data_with_df(
+        "security_controls",
+        required_columns=["ControlID", "CISPDomain", "ControlName", "MaturityScore", "Status"]
+    )
+
+    # Validate and convert numeric columns in controls DataFrame
+    if not control_df.empty:
+        if "MaturityScore" in control_df.columns:
+            control_df["MaturityScore"] = pd.to_numeric(control_df["MaturityScore"], errors='coerce').fillna(0).astype(int)
+        # Convert date columns
+        if "LastAuditDate" in control_df.columns:
+            control_df["LastAuditDate"] = pd.to_datetime(control_df["LastAuditDate"], errors='coerce')
+
+    control_config = analytics_config.get("control_effectiveness", {})
+    mature_threshold = control_config.get("mature_threshold", 85)
+    developing_threshold = control_config.get("developing_threshold", 60)
+    baseline_threshold = control_config.get("baseline_threshold", 40)
+
+    control_gaps = []
+    for control_row in control_rows:
+        maturity_score = safe_int(control_row.get("MaturityScore"))
+        gap_flag = control_row.get("GapFlag", "").lower() == "yes"
+
+        # Classify maturity
+        if maturity_score >= mature_threshold:
+            maturity_label = "Mature"
+        elif maturity_score >= developing_threshold:
+            maturity_label = "Developing"
+        elif maturity_score >= baseline_threshold:
+            maturity_label = "Baseline"
+        else:
+            maturity_label = "Immature"
+
+        control_dict = {
+            "control_id": control_row.get("ControlID", ""),
+            "cissp_domain": control_row.get("CISPDomain", ""),
+            "control_name": control_row.get("ControlName", ""),
+            "maturity_score": maturity_score,
+            "maturity_label": maturity_label,
+            "status": control_row.get("Status", ""),
+            "last_audit_date": control_row.get("LastAuditDate", ""),
+            "owner": control_row.get("Owner", ""),
+            "gap_flag": gap_flag,
+            "remediation_plan": control_row.get("RemediationPlan", "")
+        }
+
+        context["controls"].append(control_dict)
+
+        if gap_flag:
+            control_gaps.append(control_dict)
+
+    context["control_gaps"] = control_gaps
+    print(f"    ✓ Loaded {len(context['controls'])} security controls")
+    print(f"    ⚠ Identified {len(control_gaps)} control gaps")
+
+    # === 5. Load Program Tasks & Compute Backlog ===
+    print("\n  📊 Loading security program tasks and computing backlog...")
+    task_rows, task_df = load_csv_data_with_df(
+        "security_program_tasks",
+        required_columns=["TaskID", "Title", "Priority", "Owner", "Status"]
+    )
+
+    # Validate and convert numeric/date columns in tasks DataFrame
+    if not task_df.empty:
+        if "DaysOverdue" in task_df.columns:
+            task_df["DaysOverdue"] = pd.to_numeric(task_df["DaysOverdue"], errors='coerce').fillna(0).astype(int)
+        if "CompletionPct" in task_df.columns:
+            task_df["CompletionPct"] = pd.to_numeric(task_df["CompletionPct"], errors='coerce').fillna(0).astype(int)
+        if "DueDate" in task_df.columns:
+            task_df["DueDate"] = pd.to_datetime(task_df["DueDate"], errors='coerce')
+
+    overdue_tasks = []
+    at_risk_tasks = []
+    blocked_tasks = []
+
+    for task_row in task_rows:
+        status = task_row.get("Status", "")
+        days_overdue = safe_int(task_row.get("DaysOverdue"))
+        blocked_by = task_row.get("BlockedBy", "")
+
+        task_dict = {
+            "task_id": task_row.get("TaskID", ""),
+            "workstream": task_row.get("Workstream", ""),
+            "title": task_row.get("Title", ""),
+            "priority": task_row.get("Priority", ""),
+            "owner": task_row.get("Owner", ""),
+            "status": status,
+            "due_date": task_row.get("DueDate", ""),
+            "days_overdue": days_overdue,
+            "blocked_by": blocked_by,
+            "completion_pct": safe_int(task_row.get("CompletionPct"))
+        }
+
+        context["program_tasks"].append(task_dict)
+
+        if status == "Overdue":
+            overdue_tasks.append(task_dict)
+        elif status == "At Risk":
+            at_risk_tasks.append(task_dict)
+
+        if blocked_by and str(blocked_by).lower() not in ["none", "nan", ""]:
+            blocked_tasks.append(task_dict)
+
+    context["program_backlog"] = {
+        "total_tasks": len(context["program_tasks"]),
+        "overdue_count": len(overdue_tasks),
+        "at_risk_count": len(at_risk_tasks),
+        "blocked_count": len(blocked_tasks),
+        "overdue_tasks": overdue_tasks,
+        "at_risk_tasks": at_risk_tasks,
+        "blocked_tasks": blocked_tasks
+    }
+
+    print(f"    ✓ Loaded {len(context['program_tasks'])} program tasks")
+    print(f"    ⚠ Backlog: {len(overdue_tasks)} overdue, {len(at_risk_tasks)} at-risk, {len(blocked_tasks)} blocked")
+
+    # === 6. Load Stakeholders & Build Influence Map ===
+    print("\n  👥 Loading stakeholders and building influence map...")
+    stakeholder_rows, stakeholder_df = load_csv_data_with_df(
+        "security_stakeholders",
+        required_columns=["StakeholderID", "Name", "Role", "Influence", "Attitude"]
+    )
+
+    champions = []
+    blockers = []
+    advocates = []
+    observers = []
+
+    for stakeholder_row in stakeholder_rows:
+        influence = stakeholder_row.get("Influence", "").lower()
+        attitude = stakeholder_row.get("Attitude", "").lower()
+
+        stakeholder_dict = {
+            "id": stakeholder_row.get("StakeholderID", ""),
+            "name": stakeholder_row.get("Name", ""),
+            "role": stakeholder_row.get("Role", ""),
+            "function": stakeholder_row.get("Function", ""),
+            "influence": influence,
+            "attitude": attitude,
+            "engagement_plan": stakeholder_row.get("EngagementPlan", ""),
+            "notes": stakeholder_row.get("Notes", "")
+        }
+
+        context["stakeholders_raw"].append(stakeholder_dict)
+
+        # Quadrant mapping
+        if influence == "high" and attitude == "champion":
+            champions.append(stakeholder_dict)
+        elif influence == "high" and attitude == "blocker":
+            blockers.append(stakeholder_dict)
+        elif attitude in ["advocate", "champion"]:
+            advocates.append(stakeholder_dict)
+        else:
+            observers.append(stakeholder_dict)
+
+    context["stakeholder_map"] = {
+        "champions": champions,
+        "blockers": blockers,
+        "advocates": advocates,
+        "observers": observers
+    }
+
+    print(f"    ✓ Loaded {len(context['stakeholders_raw'])} stakeholders")
+    print(f"    └─ Champions: {len(champions)}, Blockers: {len(blockers)}, Advocates: {len(advocates)}, Observers: {len(observers)}")
+
+    # === 7. Load Threat Intelligence ===
+    threat_intel_rows, threat_intel_df = load_csv_data_with_df(
+        "threat_intel",
+        required_columns=["ThreatID", "ThreatActor", "Campaign", "Severity"]
+    )
+    context["threat_intel"] = threat_intel_rows
+
+    # Validate and convert date columns in threat intel DataFrame
+    if not threat_intel_df.empty:
+        date_cols = ["FirstSeen", "LastSeen"]
+        for col in date_cols:
+            if col in threat_intel_df.columns:
+                threat_intel_df[col] = pd.to_datetime(threat_intel_df[col], errors='coerce')
+
+    # === 8. Load Compliance Status ===
+    compliance_rows, compliance_df = load_csv_data_with_df(
+        "compliance_status",
+        required_columns=["FrameworkID", "Framework", "Domain"]
+    )
+    context["compliance_status"] = compliance_rows
+
+    # Validate and convert numeric/date columns in compliance DataFrame
+    if not compliance_df.empty:
+        numeric_cols = ["ControlCount", "Compliant", "NonCompliant", "InProgress", "MaturityScore"]
+        for col in numeric_cols:
+            if col in compliance_df.columns:
+                compliance_df[col] = pd.to_numeric(compliance_df[col], errors='coerce').fillna(0).astype(int)
+        if "LastAuditDate" in compliance_df.columns:
+            compliance_df["LastAuditDate"] = pd.to_datetime(compliance_df["LastAuditDate"], errors='coerce')
+        if "NextAuditDate" in compliance_df.columns:
+            compliance_df["NextAuditDate"] = pd.to_datetime(compliance_df["NextAuditDate"], errors='coerce')
+
+    # === 9. Load Security Metrics (Weekly Trends) ===
+    metrics_rows, metrics_df = load_csv_data_with_df(
+        "security_metrics",
+        required_columns=["week_start"]
+    )
+    context["security_metrics"] = metrics_rows
+
+    # Validate and convert numeric/date columns in metrics DataFrame
+    if not metrics_df.empty:
+        if "week_start" in metrics_df.columns:
+            metrics_df["week_start"] = pd.to_datetime(metrics_df["week_start"], errors='coerce')
+        # Convert all numeric metric columns
+        numeric_cols = ["critical_vulns_open", "high_vulns_open", "mean_time_to_patch_days",
+                       "sla_breach_count", "incidents_detected", "incidents_resolved",
+                       "mean_time_to_resolve_hours", "phishing_simulations_sent",
+                       "phishing_click_rate_pct", "controls_effective_pct",
+                       "compliance_score_pct", "security_debt_count"]
+        for col in numeric_cols:
+            if col in metrics_df.columns:
+                metrics_df[col] = pd.to_numeric(metrics_df[col], errors='coerce').fillna(0)
+
+    # === 10. Load Executive Updates ===
+    exec_updates_rows, exec_updates_df = load_csv_data_with_df(
+        "security_exec_updates"
+    )
+    context["exec_updates"] = exec_updates_rows
+
+    # Validate and convert date columns in exec updates DataFrame
+    if not exec_updates_df.empty:
+        if "Date" in exec_updates_df.columns:
+            exec_updates_df["Date"] = pd.to_datetime(exec_updates_df["Date"], errors='coerce')
+
+    # === 11. Compute Security Debt ===
+    print("\n  📈 Computing security debt metrics...")
+
+    debt_config = analytics_config.get("security_debt", {})
+    critical_backlog_threshold = debt_config.get("critical_backlog", 50)
+    high_backlog_threshold = debt_config.get("high_backlog", 100)
+
+    # Count open critical/high vulnerabilities
+    critical_vulns = [v for v in context["vulnerabilities"] if v["severity"] == "Critical" and v["status"] == "Open"]
+    high_vulns = [v for v in context["vulnerabilities"] if v["severity"] == "High" and v["status"] == "Open"]
+
+    # Total debt score: critical vulns + high vulns + overdue tasks + control gaps
+    debt_score = len(critical_vulns) + len(high_vulns) + len(overdue_tasks) + len(control_gaps)
+
+    if debt_score > high_backlog_threshold:
+        debt_level = "High"
+    elif debt_score > critical_backlog_threshold:
+        debt_level = "Elevated"
+    else:
+        debt_level = "Moderate"
+
+    context["security_debt"] = {
+        "total_score": debt_score,
+        "level": debt_level,
+        "critical_vulns_open": len(critical_vulns),
+        "high_vulns_open": len(high_vulns),
+        "overdue_tasks": len(overdue_tasks),
+        "control_gaps": len(control_gaps),
+        "sla_breaches": len(sla_breaches)
+    }
+
+    print(f"    ✓ Security debt score: {debt_score} ({debt_level})")
+
+    # === 12. Identify Incident Patterns ===
+    print("\n  🔎 Analyzing incident patterns...")
+
+    incident_types = {}
+    for incident in context["incidents"]:
+        inc_type = incident["type"]
+        if inc_type not in incident_types:
+            incident_types[inc_type] = []
+        incident_types[inc_type].append(incident)
+
+    # Find recurring patterns (types with 2+ incidents)
+    patterns = []
+    for inc_type, incidents in incident_types.items():
+        if len(incidents) >= 2:
+            patterns.append({
+                "type": inc_type,
+                "count": len(incidents),
+                "severity_distribution": {
+                    "Critical": len([i for i in incidents if i["severity"] == "Critical"]),
+                    "High": len([i for i in incidents if i["severity"] == "High"]),
+                    "Medium": len([i for i in incidents if i["severity"] == "Medium"])
+                }
+            })
+
+    context["incident_patterns"] = sorted(patterns, key=lambda x: x["count"], reverse=True)
+    print(f"    ✓ Identified {len(patterns)} recurring incident patterns")
+
+    # === 13. Identify Vulnerability Hotspots ===
+    print("\n  🎯 Identifying vulnerability hotspots...")
+
+    asset_vulns = {}
+    for vuln in context["vulnerabilities"]:
+        asset = vuln["asset"]
+        if asset not in asset_vulns:
+            asset_vulns[asset] = []
+        asset_vulns[asset].append(vuln)
+
+    # Find hotspots (assets with 2+ critical/high vulns)
+    hotspots = []
+    for asset, vulns in asset_vulns.items():
+        critical_high = [v for v in vulns if v["severity"] in ["Critical", "High"]]
+        if len(critical_high) >= 1:  # Lower threshold for demo
+            hotspots.append({
+                "asset": asset,
+                "total_vulns": len(vulns),
+                "critical_count": len([v for v in vulns if v["severity"] == "Critical"]),
+                "high_count": len([v for v in vulns if v["severity"] == "High"]),
+                "sla_breaches": len([v for v in vulns if v["is_sla_breach"]])
+            })
+
+    context["vuln_hotspots"] = sorted(hotspots, key=lambda x: x["critical_count"], reverse=True)
+    print(f"    ✓ Identified {len(hotspots)} vulnerability hotspots")
+
+    # === 14. Compute EBITDA Impact Components ===
+    print("\n  💰 Computing EBITDA impact breakdown with waterfall...")
+
+    # Use old function for backward compatibility
+    ebitda_impact = calculate_cyber_ebitda_impact(context, sla_breaches, control_gaps, overdue_tasks)
+    context["ebitda_impact_components"] = ebitda_impact
+
+    # Use NEW granular EBITDA function with 6 detailed components
+    cyber_ebitda_detailed = compute_cyber_ebitda(context["cyber_data_frames"])
+    context["cyber_ebitda_detailed"] = cyber_ebitda_detailed
+
+    print(f"    ✓ Baseline EBITDA: ${cyber_ebitda_detailed['baseline_ebitda_millions']}M")
+    print(f"    ✓ Regulatory penalties: ${cyber_ebitda_detailed['regulatory_penalties_millions']}M")
+    print(f"    ✓ Downtime cost: ${cyber_ebitda_detailed['downtime_cost_millions']}M")
+    print(f"    ✓ Fraud risk: ${cyber_ebitda_detailed['fraud_risk_millions']}M")
+    print(f"    ✓ OpEx drag: ${cyber_ebitda_detailed['opex_drag_millions']}M")
+    print(f"    ✓ Remediation investment: ${cyber_ebitda_detailed['remediation_investment_millions']}M")
+    print(f"    ✓ Total EBITDA impact: ${cyber_ebitda_detailed['total_impact_millions']}M")
+    print(f"    ✓ Risk-adjusted EBITDA: ${cyber_ebitda_detailed['risk_adjusted_ebitda_millions']}M")
+    print(f"    ✓ Top {len(cyber_ebitda_detailed['top_risk_drivers'])} financial risk drivers identified")
+    print(f"    ✓ {len(cyber_ebitda_detailed['recommendations_7day'])} high-priority recommendations generated")
+
+    # === 15. Compute Top Risks ===
+    context["top_risks"] = sorted(context["risks"], key=lambda x: x["exposure_millions"], reverse=True)[:5]
+
+    # === 16. Generate Premium Component Data ===
+    print("\n  🎨 Generating premium UI component data...")
+
+    # Threat Cards: Convert incidents to structured threat card data
+    threat_cards = []
+    for incident in context["incidents"]:
+        # Extract MITRE technique from tags if available
+        mitre_id = ""
+        tags = incident.get("tags", "")
+        if "T1" in tags:  # MITRE ATT&CK techniques start with T1
+            parts = tags.split(",")
+            for part in parts:
+                if "T1" in part:
+                    mitre_id = part.strip()
+                    break
+
+        threat_cards.append({
+            "type": incident["type"],
+            "severity": incident["severity"].lower(),
+            "mitre_id": mitre_id or "N/A",
+            "time_to_detect": incident.get("time_to_detect_hours", 0),
+            "time_to_contain": incident.get("time_to_resolve_hours", 0),
+            "system_impacted": incident.get("affected_system", "Unknown"),
+            "description": incident.get("description", ""),
+            "status": incident.get("status", "Open")
+        })
+
+    context["threat_cards"] = threat_cards
+
+    # Vulnerability Chips: CVSS severity counts
+    vuln_chips = {
+        "critical": len([v for v in context["vulnerabilities"] if v["severity"] == "Critical"]),
+        "high": len([v for v in context["vulnerabilities"] if v["severity"] == "High"]),
+        "medium": len([v for v in context["vulnerabilities"] if v["severity"] == "Medium"]),
+        "low": len([v for v in context["vulnerabilities"] if v["severity"] == "Low"]),
+        "sla_breach_count": len(sla_breaches)
+    }
+    context["vuln_chips"] = vuln_chips
+
+    # Asset Impact Cards: Top 3 affected assets
+    asset_cards = []
+    for hotspot in context["vuln_hotspots"][:3]:  # Top 3
+        asset_cards.append({
+            "asset_name": hotspot["asset"],
+            "total_vulns": hotspot["total_vulns"],
+            "critical_count": hotspot["critical_count"],
+            "high_count": hotspot["high_count"],
+            "sla_breaches": hotspot["sla_breaches"]
+        })
+    context["asset_cards"] = asset_cards
+
+    # Mitigation Timeline: Convert top risks into timeline items
+    mitigation_timeline = []
+    for idx, risk in enumerate(context["top_risks"][:5], 1):  # Top 5 risks
+        # Parse plan for key phases
+        plan = risk.get("plan", "No plan available")
+
+        # Determine status based on target date and current status
+        status = "in_progress"
+        if risk["status"] == "Mitigated":
+            status = "completed"
+        elif risk["status"] == "Overdue":
+            status = "blocked"
+
+        mitigation_timeline.append({
+            "phase": f"Phase {idx}",
+            "title": risk["title"],
+            "date": risk["target_date"],
+            "description": plan[:150] + "..." if len(plan) > 150 else plan,
+            "status": status,
+            "owner": risk["owner"],
+            "impact": f"${risk['exposure_millions']}M exposure"
+        })
+
+    context["mitigation_timeline"] = mitigation_timeline
+
+    print(f"    ✓ Generated {len(threat_cards)} threat cards")
+    print(f"    ✓ Generated vulnerability chips (Critical: {vuln_chips['critical']}, High: {vuln_chips['high']}, SLA Breaches: {vuln_chips['sla_breach_count']})")
+    print(f"    ✓ Generated {len(asset_cards)} asset impact cards")
+    print(f"    ✓ Generated {len(mitigation_timeline)} mitigation timeline items")
+
+    # === 17. Compute Comprehensive KPIs from DataFrames ===
+    print("\n  📊 Computing comprehensive KPIs from DataFrames...")
+    computed_kpis = compute_cyber_kpis(context["cyber_data_frames"])
+    context["computed_kpis"] = computed_kpis
+
+    print(f"    ✓ Computed {len(computed_kpis)} KPI categories:")
+    print(f"       - Risk KPIs: {len(computed_kpis.get('risk_kpis', {}))} metrics")
+    print(f"       - Incident KPIs: {len(computed_kpis.get('incident_kpis', {}))} metrics")
+    print(f"       - Vulnerability KPIs: {len(computed_kpis.get('vulnerability_kpis', {}))} metrics")
+    print(f"       - Control/Compliance KPIs: {len(computed_kpis.get('control_compliance_kpis', {}))} metrics")
+    print(f"       - Program/Governance KPIs: {len(computed_kpis.get('program_governance_kpis', {}))} metrics")
+
+    # === 17b. Extract Domain Scores from Control/Compliance KPIs ===
+    print("\n  🎯 Extracting CISSP domain scores for report...")
+    domain_scores = []
+    if computed_kpis.get("control_compliance_kpis", {}).get("by_cissp_domain"):
+        cissp_domains = computed_kpis["control_compliance_kpis"]["by_cissp_domain"]
+
+        for domain, metrics in cissp_domains.items():
+            avg_maturity = metrics.get("avg_maturity", 0)
+
+            # Determine status based on maturity
+            if avg_maturity >= 85:
+                status = "Mature"
+                status_icon = "✅"
+            elif avg_maturity >= 60:
+                status = "Developing"
+                status_icon = "⚠️"
+            else:
+                status = "Immature"
+                status_icon = "❌"
+
+            domain_scores.append({
+                "domain": domain,
+                "score": round(avg_maturity, 1),
+                "status": status,
+                "status_icon": status_icon,
+                "control_count": metrics.get("control_count", 0)
+            })
+
+        # Sort by score (ascending) to highlight weakest domains first
+        domain_scores.sort(key=lambda x: x["score"])
+
+    context["domain_scores"] = domain_scores
+    print(f"    ✓ Extracted {len(domain_scores)} CISSP domain scores")
+
+    # === 18. Build Cyber KPIs for Dashboard Tiles ===
+    print("\n  📊 Building executive KPI tiles...")
+    cyber_kpis = build_cyber_kpis(context, sla_breaches, control_gaps, overdue_tasks)
+    context["cyber_kpis"] = cyber_kpis
+
+    print(f"    ✓ Generated {len(cyber_kpis)} KPI tiles")
+
+    # === 18. Build Cyber Risk Heatmap Matrix ===
+    print("\n  🗺️  Building cyber risk heatmap matrix...")
+    risk_matrix = build_cyber_risk_matrix(context)
+    context["cyber_risk_matrix"] = risk_matrix
+
+    # Count total populated cells
+    populated_cells = sum(1 for cell in risk_matrix["cells"].values() if cell["count"] > 0)
+    print(f"    ✓ Risk matrix built: {populated_cells} cells populated with {len(context['risks'])} risks")
+
+    # === 19. Build Stakeholder Landscape Quadrants ===
+    print("\n  👥 Building stakeholder landscape quadrants...")
+    stakeholder_quadrants = build_stakeholder_quadrants(context)
+    context["stakeholder_quadrants"] = stakeholder_quadrants
+
+    total_mapped = sum(len(q) for q in stakeholder_quadrants.values())
+    print(f"    ✓ Stakeholder landscape: {total_mapped} stakeholders mapped across 4 quadrants")
+    print(f"      └─ Champions/Sponsors: {len(stakeholder_quadrants['high_influence_supportive'])}, "
+          f"Blockers: {len(stakeholder_quadrants['high_influence_resistant'])}, "
+          f"Advocates: {len(stakeholder_quadrants['low_influence_supportive'])}, "
+          f"Observers: {len(stakeholder_quadrants['low_influence_resistant'])}")
+
+    # === 20. Generate Cybersecurity Visualization Charts ===
+    print("\n  📊 Generating cybersecurity visualization charts...")
+    chart_paths = generate_all_cyber_charts(
+        context["cyber_data_frames"],
+        context.get("cyber_ebitda_detailed", context.get("ebitda_impact_components"))  # Use new detailed EBITDA or fallback
+    )
+    context["chart_paths"] = chart_paths
+    print(f"    ✓ Generated {len(chart_paths)} visualization charts")
+
+    print(f"\n✅ Cybersecurity context built successfully:")
+    print(f"   • {len(context['risks'])} security risks")
+    print(f"   • {len(context['vulnerabilities'])} vulnerabilities ({len(sla_breaches)} SLA breaches)")
+    print(f"   • {len(context['incidents'])} incidents")
+    print(f"   • {len(context['controls'])} controls ({len(control_gaps)} gaps)")
+    print(f"   • {len(context['program_tasks'])} program tasks")
+    print(f"   • {len(context['stakeholders_raw'])} stakeholders")
+    print(f"   • Security debt score: {debt_score} ({debt_level})")
+    print(f"   • Total EBITDA impact: ${context['ebitda_impact_components']['total_impact_millions']}M\n")
+
+    return context
+
+
+def build_cyber_context(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Build clean, structured CISSP-aligned context model for Cyber PMO dashboard.
+
+    This is a convenience wrapper around build_cyber_risk_program_context() with a simplified
+    signature. Use this when you only need the default 'sentient_cyber_pmo' scenario.
+
+    The context model includes:
+    - CISSP-aligned security domains (8 domains)
+    - Pandas DataFrames for all CSV sources (advanced analytics)
+    - Computed KPIs (security debt, EBITDA impact, risk matrix, stakeholder quadrants)
+    - Auto-generated charts (10 cybersecurity visualizations)
+    - Financial impact model (6-component EBITDA waterfall)
+
+    Args:
+        config: Application configuration (must include 'sentient_cyber_pmo' scenario)
+
+    Returns:
+        Structured context dict ready for dashboard rendering
+
+    Example:
+        >>> config = load_config()
+        >>> cyber_context = build_cyber_context(config)
+        >>> print(f"Security debt: {cyber_context['security_debt']['total_score']}")
+        >>> print(f"EBITDA impact: ${cyber_context['cyber_ebitda_detailed']['total_impact_millions']}M")
+    """
+    return build_cyber_risk_program_context(config, "sentient_cyber_pmo")
+
+
 def build_prompt(combined_data: str, config: Dict[str, Any], scenario: str = None) -> str:
     """
     Build the AI prompt based on configuration and scenario.
@@ -1347,6 +3827,136 @@ def summarize_with_ai_v2(risk_context: Dict[str, Any], config: Dict[str, Any], s
     return response.choices[0].message.content.strip()
 
 
+def summarize_cyber_program_with_ai(context: Dict[str, Any], config: Dict[str, Any], scenario: str) -> str:
+    """
+    Generate executive-grade cybersecurity program report from CyberRiskProgramContext.
+
+    This function produces a CISO-level report analyzing security posture, control gaps,
+    vulnerability exposure, security debt, and business impact. The output is structured
+    for C-suite consumption with clear separation of facts and interpretation.
+
+    Args:
+        context: Structured cybersecurity context from build_cyber_risk_program_context()
+        config: Application configuration
+        scenario: Scenario name (e.g., 'sentient_cyber_pmo')
+
+    Returns:
+        AI-generated markdown report (7 sections)
+    """
+    print(f"\n🤖 Generating cybersecurity program analysis for {scenario}...")
+
+    # Get scenario configuration
+    scenario_config = config.get("scenarios", {}).get(scenario, {})
+    scenario_title = scenario_config.get("title", "Cyber PMO Intelligence")
+    prompt_focus = scenario_config.get("prompt_focus", [])
+    analytics = scenario_config.get("analytics", {})
+
+    # Extract key metrics from context for prompt
+    security_debt = context.get("security_debt", {})
+    program_backlog = context.get("program_backlog", {})
+    ebitda_impact = context.get("ebitda_impact_components", {})
+    stakeholder_map = context.get("stakeholder_map", {})
+
+    # Serialize context to JSON for structured prompt
+    import json
+
+    # Create a condensed context summary for the prompt (avoid overwhelming the LLM)
+    condensed_context = {
+        "scenario_title": context.get("scenario_title"),
+        "top_risks": context.get("top_risks", [])[:5],  # Top 5 risks
+        "vulnerabilities_summary": {
+            "total": len(context.get("vulnerabilities", [])),
+            "critical_open": len([v for v in context.get("vulnerabilities", []) if v["severity"] == "Critical" and v["status"] == "Open"]),
+            "high_open": len([v for v in context.get("vulnerabilities", []) if v["severity"] == "High" and v["status"] == "Open"]),
+            "sla_breaches": security_debt.get("sla_breaches", 0),
+            "critical_with_exploits": len([v for v in context.get("vulnerabilities", []) if v["severity"] == "Critical" and v["exploit_in_wild"] == "Yes"]),
+            "sample_breaches": [v for v in context.get("vulnerabilities", []) if v.get("is_sla_breach")][:3]
+        },
+        "incidents_summary": {
+            "total": len(context.get("incidents", [])),
+            "critical": len([i for i in context.get("incidents", []) if i["severity"] == "Critical"]),
+            "data_exfiltration": len([i for i in context.get("incidents", []) if i["data_exfiltrated"] not in ["No", ""]]),
+            "mttr_exceeded": len([i for i in context.get("incidents", []) if i.get("mttr_exceeded")]),
+            "recent_incidents": context.get("incidents", [])[-5:]  # Last 5 incidents
+        },
+        "control_gaps": context.get("control_gaps", []),
+        "control_maturity_distribution": {
+            "mature": len([c for c in context.get("controls", []) if c["maturity_label"] == "Mature"]),
+            "developing": len([c for c in context.get("controls", []) if c["maturity_label"] == "Developing"]),
+            "baseline": len([c for c in context.get("controls", []) if c["maturity_label"] == "Baseline"]),
+            "immature": len([c for c in context.get("controls", []) if c["maturity_label"] == "Immature"])
+        },
+        "security_debt": security_debt,
+        "program_backlog": {
+            "total_tasks": program_backlog.get("total_tasks", 0),
+            "overdue_count": program_backlog.get("overdue_count", 0),
+            "at_risk_count": program_backlog.get("at_risk_count", 0),
+            "blocked_count": program_backlog.get("blocked_count", 0),
+            "overdue_tasks": program_backlog.get("overdue_tasks", []),
+            "blocked_tasks": program_backlog.get("blocked_tasks", [])
+        },
+        "incident_patterns": context.get("incident_patterns", []),
+        "vuln_hotspots": context.get("vuln_hotspots", [])[:5],
+        "stakeholder_map": {
+            "champions": stakeholder_map.get("champions", []),
+            "blockers": stakeholder_map.get("blockers", []),
+            "advocates": stakeholder_map.get("advocates", [])
+        },
+        "threat_intel": context.get("threat_intel", [])[:5],  # Top 5 threats
+        "compliance_summary": {
+            "total_frameworks": len(set([c.get("Framework", "Unknown") for c in context.get("compliance_status", []) if c.get("Framework")])),
+            "critical_gaps": [c for c in context.get("compliance_status", []) if int(c.get("NonCompliant", 0)) > 2][:3]
+        },
+        "ebitda_impact": ebitda_impact,
+        "security_metrics_trend": context.get("security_metrics", [])[-4:],  # Last 4 weeks
+        "exec_updates": context.get("exec_updates", [])[-5:]  # Last 5 updates
+    }
+
+    context_json = json.dumps(condensed_context, indent=2, default=str)
+
+    # Build the cybersecurity-specific prompt using data-driven prompt builder
+    prompt = build_data_driven_cyber_prompt(context, config, scenario)
+
+
+    # Use OpenAI to generate the report
+    ai_config = config.get("ai", {})
+    model = ai_config.get("model", MODEL)
+    temperature = ai_config.get("temperature", 0.3)
+    max_tokens = ai_config.get("max_tokens", 4000)  # Longer for cyber reports
+
+    print(f"   Model: {model}")
+    print(f"   Temperature: {temperature}")
+    print(f"   Max tokens: {max_tokens}")
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a Chief Information Security Officer (CISO) and elite cybersecurity management consultant. "
+                    "You create board-ready security program intelligence reports with exceptional clarity, rigor, and business acumen. "
+                    "Your reports inform multi-million dollar security investment decisions and risk mitigation strategies for Fortune 500 executives.\n\n"
+                    "CRITICAL OUTPUT RULES:\n"
+                    "• Output ONLY plain markdown (headings, paragraphs, bullet lists, tables)\n"
+                    "• Do NOT emit any raw HTML tags (<div>, <span>, <section>, class=, etc.)\n"
+                    "• Do NOT wrap your answer in code fences (no ```markdown or ``` blocks)\n"
+                    "• Start immediately with the first markdown heading\n"
+                    "• Use professional, executive-level language\n"
+                    "• Separate facts (from data) from interpretation (your analysis)\n"
+                    "• Quantify everything: use dollars, percentages, counts, dates"
+                )
+            },
+            {"role": "user", "content": prompt},
+        ],
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+    print("   ✓ Report generated successfully\n")
+    return response.choices[0].message.content.strip()
+
+
 def write_markdown_output(summary: str, config: Dict[str, Any], scenario: str = None) -> str:
     """Write summary to Markdown file."""
     # Get output config from scenario or default
@@ -1579,7 +4189,7 @@ def markdown_to_html_sections(markdown_text: str) -> str:
     return '\n'.join(html_parts)
 
 
-def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None, risk_context: Optional[Dict[str, Any]] = None, ebitda_chart_path: Optional[str] = None) -> str:
+def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None, risk_context: Optional[Dict[str, Any]] = None, ebitda_chart_path: Optional[str] = None, cyber_context: Optional[Dict[str, Any]] = None) -> str:
     """Write summary to HTML file using template."""
     # Get output config from scenario or default
     if scenario and scenario in config.get("scenarios", {}):
@@ -1611,6 +4221,59 @@ def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None
     # Convert markdown summary to HTML
     html_content = markdown_to_html_sections(summary)
 
+    # Extract Analyst Notes section for Cyber PMO scenario
+    analyst_notes_content = ""
+    if scenario == 'sentient_cyber_pmo':
+        # Extract the "Analyst Notes & Key Insights" section from markdown
+        import re
+        match = re.search(r'# Analyst Notes & Key Insights\n+(.*?)(?=\n---|\Z)', summary, re.DOTALL)
+        if match:
+            analyst_notes_md = match.group(1).strip()
+            # Convert markdown to HTML with proper list handling
+            lines = analyst_notes_md.split('\n')
+            html_lines = []
+            in_list = False
+
+            for line in lines:
+                if line.startswith('### '):
+                    # Close any open list before starting new heading
+                    if in_list:
+                        html_lines.append('</ul>')
+                        in_list = False
+                    heading = line[4:]  # Remove '### '
+                    html_lines.append(f'<h3>{heading}</h3>')
+                elif line.startswith('- '):
+                    # Start list if not already in one
+                    if not in_list:
+                        html_lines.append('<ul>')
+                        in_list = True
+                    item = line[2:]  # Remove '- '
+                    # Convert markdown formatting
+                    item = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', item)
+                    item = re.sub(r'`(.*?)`', r'<code>\1</code>', item)
+                    html_lines.append(f'<li>{item}</li>')
+                elif line.strip() == '':
+                    # Close list on empty line
+                    if in_list:
+                        html_lines.append('</ul>')
+                        in_list = False
+                else:
+                    # Regular paragraph text
+                    if in_list:
+                        html_lines.append('</ul>')
+                        in_list = False
+                    if line.strip():
+                        # Convert markdown formatting
+                        line = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', line)
+                        line = re.sub(r'`(.*?)`', r'<code>\1</code>', line)
+                        html_lines.append(f'<p>{line}</p>')
+
+            # Close any remaining open list
+            if in_list:
+                html_lines.append('</ul>')
+
+            analyst_notes_content = '\n'.join(html_lines)
+
     # Prepare template variables
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1619,7 +4282,7 @@ def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None
     template_vars = {
         'title': report_title,
         'date': today,
-        'content': html_content,
+        'content': html_content if scenario != 'sentient_cyber_pmo' else analyst_notes_content,
         'timestamp': timestamp,
         'scenario': scenario
     }
@@ -1650,6 +4313,13 @@ def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None
             # Add EBITDA chart path
             if ebitda_chart_path:
                 template_vars['ebitda_chart_path'] = os.path.basename(ebitda_chart_path)
+
+    elif scenario == 'sentient_cyber_pmo':
+        # Inject cyber_context data if provided
+        if cyber_context:
+            # Merge all cyber context data into template vars
+            template_vars.update(cyber_context)
+
     else:
         # Default KPI values for standard reports
         template_vars.update({
@@ -1667,6 +4337,540 @@ def write_html_output(summary: str, config: Dict[str, Any], scenario: str = None
         f.write(html_output)
 
     return filepath
+
+
+def prioritize_cyber_context(cyber_context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Stage 2: Prioritization/Compression Layer
+
+    Distills the rich cyber_context from Stage 1 into a small, LLM-ready summary.
+
+    This function is pure and deterministic:
+    - No LLM calls
+    - No I/O operations
+    - Same input always produces same output
+
+    Args:
+        cyber_context: Rich context dict from build_cyber_context() (Stage 1)
+
+    Returns:
+        Prioritized dict with:
+        - top_risks: Top 5 risks by EBITDA_Impact
+        - weakest_domains: 3 weakest CISSP domains
+        - kpis: Executive-level KPI subset
+        - top_compliance_gaps: Top 3 compliance gaps by risk rating
+        - security_debt: Curated security debt metrics
+        - program_health: Curated program health metrics
+        - financials: Full financial aggregates (passed through)
+    """
+    print("\n🎯 [Stage 2] Prioritizing cyber context for LLM processing...")
+
+    prioritized = {}
+
+    # === 1. Top 5 Risks by EBITDA Impact ===
+    risks_df = cyber_context.get("risks", pd.DataFrame())
+
+    if not risks_df.empty and "EBITDA_Impact" in risks_df.columns:
+        # Sort by EBITDA_Impact descending, take top 5
+        top_risks_df = risks_df.nlargest(5, "EBITDA_Impact")
+
+        # Convert to list of dicts with required fields
+        prioritized["top_risks"] = []
+        for _, row in top_risks_df.iterrows():
+            prioritized["top_risks"].append({
+                "RiskID": row.get("RiskID", "Unknown"),
+                "Domain": row.get("Domain", "Unknown"),
+                "Description": row.get("Description", ""),
+                "ExposureAmount": row.get("ExposureAmount", 0),
+                "Likelihood": row.get("Likelihood", "Unknown"),
+                "EBITDA_Impact": row.get("EBITDA_Impact", 0)
+            })
+
+        print(f"    ✓ Selected top 5 risks by EBITDA impact (total: ${sum(r['EBITDA_Impact'] for r in prioritized['top_risks']) / 1_000_000:.1f}M)")
+    else:
+        prioritized["top_risks"] = []
+        print("    ✗ No risk data available")
+
+    # === 2. Top 3 Weakest CISSP Domains ===
+    domain_scores = cyber_context.get("domain_scores", {})
+
+    if domain_scores:
+        # Sort by score ascending (lowest scores = weakest domains)
+        sorted_domains = sorted(domain_scores.items(), key=lambda x: x[1])
+
+        # Take top 3 weakest
+        prioritized["weakest_domains"] = [
+            {"domain": domain, "score": score}
+            for domain, score in sorted_domains[:3]
+        ]
+
+        print(f"    ✓ Identified 3 weakest CISSP domains: {', '.join(d['domain'] for d in prioritized['weakest_domains'])}")
+    else:
+        prioritized["weakest_domains"] = []
+        print("    ✗ No domain scores available")
+
+    # === 3. Executive KPI Subset ===
+    all_kpis = cyber_context.get("kpis", {})
+
+    # Curated subset for executives
+    executive_kpi_keys = [
+        "total_incidents",
+        "critical_incidents_count",
+        "avg_mttd_hours",
+        "avg_mttr_hours",
+        "open_critical_vulns",
+        "overdue_vulns_count",
+        "failing_controls_count",
+        "total_ebitda_impact"
+    ]
+
+    prioritized["kpis"] = {
+        key: all_kpis.get(key, 0)
+        for key in executive_kpi_keys
+    }
+
+    kpi_count = len([v for v in prioritized["kpis"].values() if v != 0])
+    print(f"    ✓ Selected {kpi_count} executive KPIs from {len(all_kpis)} total metrics")
+
+    # === 4. Top 3 Compliance Gaps ===
+    compliance_gaps = cyber_context.get("compliance_gaps", [])
+
+    if compliance_gaps:
+        # Filter for High or Medium-High risk rating
+        high_risk_gaps = [
+            gap for gap in compliance_gaps
+            if gap.get("RiskRating", "").lower() in ["high", "medium-high"]
+        ]
+
+        # Take top 3
+        prioritized["top_compliance_gaps"] = high_risk_gaps[:3]
+
+        print(f"    ✓ Selected top 3 compliance gaps (from {len(compliance_gaps)} total)")
+    else:
+        prioritized["top_compliance_gaps"] = []
+        print("    ✗ No compliance gaps available")
+
+    # === 5. Curated Security Debt Metrics ===
+    security_debt = cyber_context.get("security_debt", {})
+
+    # Only include executive-relevant fields
+    prioritized["security_debt"] = {
+        "total_open_vulns": security_debt.get("total_open_vulns", 0),
+        "critical_vulns_open": security_debt.get("critical_vulns_open", 0),
+        "count_overdue_vulns": security_debt.get("count_overdue_vulns", 0),
+        "oldest_vuln_age_days": security_debt.get("oldest_vuln_age_days", 0)
+    }
+
+    print(f"    ✓ Curated security debt: {prioritized['security_debt']['critical_vulns_open']} critical vulns, {prioritized['security_debt']['count_overdue_vulns']} overdue")
+
+    # === 6. Curated Program Health Metrics ===
+    program_health = cyber_context.get("program_health", {})
+
+    prioritized["program_health"] = {
+        "total_tasks": program_health.get("total_tasks", 0),
+        "percent_in_progress": program_health.get("percent_in_progress", 0.0),
+        "percent_not_started": program_health.get("percent_not_started", 0.0),
+        "tasks_blocked_count": program_health.get("tasks_blocked_count", 0),
+        "high_risk_tasks_open": program_health.get("high_risk_tasks_open", 0)
+    }
+
+    print(f"    ✓ Curated program health: {prioritized['program_health']['total_tasks']} tasks, {prioritized['program_health']['tasks_blocked_count']} blocked")
+
+    # === 7. Financial Aggregates (Pass Through) ===
+    prioritized["financials"] = cyber_context.get("financials", {})
+
+    total_exposure = prioritized["financials"].get("total_exposure", 0)
+    total_ebitda = prioritized["financials"].get("total_ebitda_impact", 0)
+    print(f"    ✓ Financial aggregates: ${total_exposure / 1_000_000:.1f}M exposure, ${total_ebitda / 1_000_000:.1f}M EBITDA impact")
+
+    print(f"\n✅ [Stage 2] Prioritization complete!")
+    print(f"    • Compressed from full context → {len(prioritized['top_risks'])} risks + {len(prioritized['weakest_domains'])} domains + {len(prioritized['kpis'])} KPIs")
+
+    return prioritized
+
+
+def generate_cyber_executive_summary(prioritized: Dict[str, Any], config: Dict[str, Any]) -> str:
+    """
+    Stage 3a: Generate Executive Summary from prioritized context
+
+    Uses LLM to create a concise executive summary focusing on:
+    - One headline sentence
+    - 4-6 KPI bullets
+    - Exactly 3 "Decisions Required"
+
+    Args:
+        prioritized: Prioritized context from Stage 2
+        config: Application configuration
+
+    Returns:
+        Executive summary markdown string (~8 lines total)
+    """
+    print("\n📝 [Stage 3a] Generating Executive Summary...")
+
+    # Extract relevant data
+    kpis = prioritized.get("kpis", {})
+    top_risks = prioritized.get("top_risks", [])[:3]  # Top 3 only
+    financials = prioritized.get("financials", {})
+    weakest_domains = prioritized.get("weakest_domains", [])
+
+    # Build prompt
+    import json
+    data_json = json.dumps({
+        "kpis": kpis,
+        "top_3_risks": top_risks,
+        "total_ebitda_impact": financials.get("total_ebitda_impact", 0),
+        "total_exposure": financials.get("total_exposure", 0),
+        "weakest_domains": weakest_domains
+    }, indent=2)
+
+    prompt = f"""You are a CISO preparing an executive cybersecurity summary for the CEO, CFO, and Board.
+
+**Data** (from prioritized context):
+{data_json}
+
+**Task**: Generate an executive summary with EXACTLY this structure:
+
+1. **ONE HEADLINE SENTENCE** (15 words max):
+   Pattern: "Security posture is [improving/stable/deteriorating] across [domains], creating [preventable/active] breach path with $X.XM EBITDA exposure."
+
+2. **KPI ROW** (4-6 bullets):
+   - **Total Risk Exposure**: $X.XM
+   - **Incidents**: X (from total_incidents)
+   - **MTTR**: X.X hours (from avg_mttr_hours)
+   - **Critical Vulns Overdue**: X (from overdue_vulns_count)
+   - **Failing Controls**: X (from failing_controls_count)
+   - **EBITDA Impact**: $X.XM (from total_ebitda_impact)
+
+3. **EXACTLY 3 DECISIONS REQUIRED**:
+   Format per decision:
+   **[Decision]** (Owner: [Role] | When: [Timeframe] | Addresses: [RiskID/Domain])
+
+   Base decisions on top_3_risks and weakest_domains data above.
+
+**Constraints**:
+- Total output: ~8 lines
+- No paragraphs
+- No generic advice
+- Use actual RiskIDs, dollar amounts, and metrics from data above
+- Each decision must reference a specific risk or domain from the data
+
+**Output Format**: Plain markdown, no code fences.
+
+Generate the executive summary now:"""
+
+    # Call LLM
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500
+        )
+        summary = response.choices[0].message.content.strip()
+        print(f"    ✓ Generated executive summary ({len(summary)} chars, ~{len(summary.split())} words)")
+        return summary
+    except Exception as e:
+        print(f"    ✗ Error generating executive summary: {e}")
+        return "# Executive Summary\n\n[Error generating summary]"
+
+
+def generate_cyber_section_summaries(prioritized: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Stage 3b: Generate section summaries from prioritized context
+
+    Creates focused summaries for 6 sections:
+    - risk_posture
+    - threats_and_incidents
+    - vulnerabilities_and_debt
+    - controls_and_compliance
+    - program_execution
+    - financial_impact
+
+    Each section follows "What → Why → Do" structure (5-7 lines max).
+
+    Args:
+        prioritized: Prioritized context from Stage 2
+        config: Application configuration
+
+    Returns:
+        Dict mapping section name to markdown summary
+    """
+    print("\n📝 [Stage 3b] Generating section summaries...")
+
+    sections = {}
+
+    # Extract data for sections
+    top_risks = prioritized.get("top_risks", [])
+    kpis = prioritized.get("kpis", {})
+    compliance_gaps = prioritized.get("top_compliance_gaps", [])
+    security_debt = prioritized.get("security_debt", {})
+    program_health = prioritized.get("program_health", {})
+    financials = prioritized.get("financials", {})
+    weakest_domains = prioritized.get("weakest_domains", [])
+
+    import json
+
+    # === 1. Risk Posture ===
+    risk_data = json.dumps({
+        "top_5_risks": top_risks[:5],
+        "weakest_domains": weakest_domains
+    }, indent=2)
+
+    sections["risk_posture"] = _generate_section(
+        section_name="Cyber Risk Posture",
+        data=risk_data,
+        instructions="""
+**What**: Summarize top risks by RiskID with breach paths (Initial Access → Lateral Movement → Impact)
+**Why**: State CISSP domain + business impact (e.g., "Cloud Security: Credential theft → $X.XM GDPR penalties")
+**Do**: Concrete action with timeframe
+
+5-7 lines max. No repetition of executive summary."""
+    )
+
+    # === 2. Threats & Incidents ===
+    incident_data = json.dumps({
+        "total_incidents": kpis.get("total_incidents", 0),
+        "critical_incidents": kpis.get("critical_incidents_count", 0),
+        "avg_mttd_hours": kpis.get("avg_mttd_hours", 0),
+        "avg_mttr_hours": kpis.get("avg_mttr_hours", 0)
+    }, indent=2)
+
+    sections["threats_and_incidents"] = _generate_section(
+        section_name="Threat & Incident Trends",
+        data=incident_data,
+        instructions="""
+**What**: Describe incident patterns and attack types
+**Why**: CISSP domain (Security Operations) + business impact
+**Do**: Concrete action with timeframe
+
+5-7 lines max. Start with "Incident trends show..."."""
+    )
+
+    # === 3. Vulnerabilities & Debt ===
+    vuln_data = json.dumps({
+        "security_debt": security_debt,
+        "open_critical_vulns": kpis.get("open_critical_vulns", 0),
+        "overdue_vulns": kpis.get("overdue_vulns_count", 0)
+    }, indent=2)
+
+    sections["vulnerabilities_and_debt"] = _generate_section(
+        section_name="Vulnerability & Security Debt",
+        data=vuln_data,
+        instructions="""
+**What**: Highlight critical CVEs and SLA breaches
+**Why**: CISSP domain (IAM/Software Security) + business impact
+**Do**: Concrete action with timeframe
+
+5-7 lines max. Start with "Vulnerability data shows..."."""
+    )
+
+    # === 4. Controls & Compliance ===
+    compliance_data = json.dumps({
+        "top_compliance_gaps": compliance_gaps,
+        "failing_controls": kpis.get("failing_controls_count", 0),
+        "weakest_domains": weakest_domains
+    }, indent=2)
+
+    sections["controls_and_compliance"] = _generate_section(
+        section_name="Controls & Compliance (CISSP Alignment)",
+        data=compliance_data,
+        instructions="""
+**What**: List failing controls and compliance gaps by framework
+**Why**: CISSP domain (Security & Risk Management) + audit/contract risk
+**Do**: Concrete action with timeframe
+
+5-7 lines max."""
+    )
+
+    # === 5. Program Execution ===
+    program_data = json.dumps({
+        "program_health": program_health
+    }, indent=2)
+
+    sections["program_execution"] = _generate_section(
+        section_name="Program Execution & Governance",
+        data=program_data,
+        instructions="""
+**What**: Highlight blocked tasks and velocity issues
+**Why**: CISSP domain (Security Governance) + business impact
+**Do**: Concrete action with timeframe
+
+5-7 lines max."""
+    )
+
+    # === 6. Financial Impact ===
+    financial_data = json.dumps({
+        "total_ebitda_impact": financials.get("total_ebitda_impact", 0),
+        "ebitda_by_driver": financials.get("ebitda_by_driver", {}),
+        "top_risks": top_risks[:3]
+    }, indent=2)
+
+    sections["financial_impact"] = _generate_section(
+        section_name="Financial Impact (EBITDA)",
+        data=financial_data,
+        instructions="""
+**What**: Show EBITDA drivers by category (revenue, opex, penalties, downtime)
+**Why**: CFO-ready: What's controllable in 90 days?
+**Do**: State 90-day scenarios: "Do nothing" vs "Controllable"
+
+5-7 lines max. Start with "EBITDA waterfall shows..."."""
+    )
+
+    print(f"    ✓ Generated {len(sections)} section summaries")
+    return sections
+
+
+def _generate_section(section_name: str, data: str, instructions: str) -> str:
+    """Helper function to generate a single section summary."""
+    prompt = f"""You are a CISO writing a concise section for an executive cyber report.
+
+**Section**: {section_name}
+
+**Data**:
+{data}
+
+**Instructions**:
+{instructions}
+
+**Structure**: What → Why → Do (bullets only, no paragraphs)
+**Length**: 5-7 lines max
+**Audience**: CEO, CFO, CTO
+
+**Output Format**: Plain markdown, no code fences.
+
+Generate the section now:"""
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=300
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"    ✗ Error generating {section_name}: {e}")
+        return f"## {section_name}\n\n[Error generating section]"
+
+
+def generate_cyber_decisions_block(prioritized: Dict[str, Any], config: Dict[str, Any]) -> str:
+    """
+    Stage 3c: Generate "Decisions & Next 30 Days" block
+
+    Creates a focused decision list with:
+    - 3-5 numbered recommendations
+    - Each with: Action + Owner role + Timeframe + Risk/EBITDA driver
+
+    Args:
+        prioritized: Prioritized context from Stage 2
+        config: Application configuration
+
+    Returns:
+        Decisions block markdown string (~6 lines)
+    """
+    print("\n📝 [Stage 3c] Generating Decisions & Next 30 Days...")
+
+    # Extract relevant data
+    top_risks = prioritized.get("top_risks", [])[:5]
+    weakest_domains = prioritized.get("weakest_domains", [])
+    financials = prioritized.get("financials", {})
+    program_health = prioritized.get("program_health", {})
+
+    import json
+    data_json = json.dumps({
+        "top_5_risks": top_risks,
+        "weakest_domains": weakest_domains,
+        "total_ebitda_impact": financials.get("total_ebitda_impact", 0),
+        "tasks_blocked_count": program_health.get("tasks_blocked_count", 0)
+    }, indent=2)
+
+    prompt = f"""You are a CISO preparing a "Decisions & Next 30 Days" section for the CEO and Board.
+
+**Data** (from prioritized context):
+{data_json}
+
+**Task**: Generate a decisions block with:
+
+1. **Intro line**:
+   "To materially improve cyber posture over the next 30 days, we recommend:"
+
+2. **3-5 numbered recommendations**:
+   Format per recommendation:
+   [#]. **[Action]** | Owner: [Role] | Timeframe: [< X days] | Domain: [CISSP Domain] | Addresses: [RiskID + $X.XM]
+
+   Example:
+   1. **Deploy CSPM for S3 bucket scanning** | Owner: CISO | Timeframe: < 14 days | Domain: Cloud Security | Addresses: SR-003 → $9.0M regulatory penalties
+
+   Base recommendations on top_5_risks and weakest_domains from data above.
+
+**Constraints**:
+- Total output: ~6 lines (intro + 3-5 recommendations)
+- No "Decisions Required" subsection (this is the full output)
+- Use actual RiskIDs and dollar amounts from data
+- Each recommendation must reference specific risk or domain from data
+
+**Output Format**: Plain markdown, no code fences.
+
+Generate the decisions block now:"""
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=400
+        )
+        decisions = response.choices[0].message.content.strip()
+        print(f"    ✓ Generated decisions block ({len(decisions)} chars)")
+        return decisions
+    except Exception as e:
+        print(f"    ✗ Error generating decisions: {e}")
+        return "# Decisions & Next 30 Days\n\n[Error generating decisions]"
+
+
+def generate_cyber_narrative(prioritized: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Stage 3: Generate complete cyber narrative from prioritized context
+
+    Orchestrates LLM calls to create executive-grade narrative components:
+    - Executive summary (headline + KPIs + 3 decisions)
+    - 6 section summaries (risk, threats, vulns, compliance, program, financial)
+    - Decisions block (3-5 recommendations)
+
+    This is the LLM processing stage of the pipeline:
+    Stage 1 (build_cyber_context) → Stage 2 (prioritize) → Stage 3 (narrative) → Stage 4 (output)
+
+    Args:
+        prioritized: Prioritized context from Stage 2 (prioritize_cyber_context)
+        config: Application configuration
+
+    Returns:
+        Dict with:
+        - executive_summary: str
+        - sections: Dict[str, str]
+        - decisions: str
+    """
+    print("\n" + "=" * 80)
+    print("STAGE 3: LLM Narrative Generation")
+    print("=" * 80)
+
+    narrative = {}
+
+    # 3a. Executive Summary
+    narrative["executive_summary"] = generate_cyber_executive_summary(prioritized, config)
+
+    # 3b. Section Summaries
+    narrative["sections"] = generate_cyber_section_summaries(prioritized, config)
+
+    # 3c. Decisions Block
+    narrative["decisions"] = generate_cyber_decisions_block(prioritized, config)
+
+    print("\n✅ [Stage 3] Narrative generation complete!")
+    print(f"    • Executive Summary: {len(narrative['executive_summary'])} chars")
+    print(f"    • Sections: {len(narrative['sections'])} sections")
+    print(f"    • Decisions: {len(narrative['decisions'])} chars")
+
+    return narrative
 
 
 def main(scenario: str = None):
@@ -1741,6 +4945,99 @@ def main(scenario: str = None):
             outputs.append(f"Markdown: {md_path}")
 
         html_path = write_html_output(summary, config, scenario, risk_context=risk_context, ebitda_chart_path=ebitda_chart_path)
+        if html_path:
+            outputs.append(f"HTML: {html_path}")
+
+    elif scenario == "sentient_cyber_pmo":
+        # Platinum Day 3 pipeline: structured cybersecurity context → cyber AI summarizer
+
+        # === STAGE 1: Fortune-500-Grade Context Builder ===
+        # New simplified approach: Pure data transformation (pandas only, no LLM)
+        # Loads CSVs → Computes KPIs → Returns structured dict
+        # This is a cleaner, focused alternative to the comprehensive build_cyber_risk_program_context()
+
+        # Option A: Use new Stage 1 builder (recommended for future scenarios)
+        # cyber_context = build_cyber_context(config, scenario)
+
+        # Option B: Use existing comprehensive builder (current production path)
+        # build_cyber_risk_program_context() already:
+        #   - Loads 11 CSV files into DataFrames
+        #   - Computes cyber KPIs (compute_cyber_kpis)
+        #   - Builds risk matrix and stakeholder quadrants
+        #   - Computes EBITDA impact (compute_cyber_ebitda)
+        #   - Generates all 9 charts (generate_all_cyber_charts)
+        #   - Returns complete structured context
+        cyber_context = build_cyber_risk_program_context(config, scenario)
+
+        # Charts are already generated and in cyber_context["chart_paths"]
+        # KPIs are already computed and in cyber_context["computed_kpis"]
+        # EBITDA is already computed and in cyber_context["cyber_ebitda_detailed"]
+        # Risk matrix is already built and in cyber_context["cyber_risk_matrix"]
+        # Stakeholder quadrants are already built and in cyber_context["stakeholder_quadrants"]
+
+        # === STAGE 2: Prioritization/Compression Layer ===
+        # Distill rich cyber_context into LLM-ready summary
+        # Pure function (no LLM calls, no I/O)
+        # Selects:
+        #   - Top 5 risks by EBITDA impact
+        #   - 3 weakest CISSP domains
+        #   - Executive KPI subset (8 key metrics)
+        #   - Top 3 compliance gaps
+        #   - Curated security debt and program health
+        # prioritized = prioritize_cyber_context(cyber_context)
+        # NOTE: Not yet wired - keeping existing flow for now
+
+        # === STAGE 3: LLM Narrative Generation ===
+        # NEW APPROACH (using Stage 2 + Stage 3):
+        # narrative = generate_cyber_narrative(prioritized, config)
+        # Returns:
+        #   {
+        #     "executive_summary": str,
+        #     "sections": {
+        #       "risk_posture": str,
+        #       "threats_and_incidents": str,
+        #       "vulnerabilities_and_debt": str,
+        #       "controls_and_compliance": str,
+        #       "program_execution": str,
+        #       "financial_impact": str
+        #     },
+        #     "decisions": str
+        #   }
+        #
+        # Then assemble into final markdown:
+        # summary = f"""# Executive Summary
+        # {narrative['executive_summary']}
+        #
+        # ## Cyber Risk Posture
+        # {narrative['sections']['risk_posture']}
+        #
+        # ## Threat & Incident Trends
+        # {narrative['sections']['threats_and_incidents']}
+        # ... etc
+        # """
+
+        # EXISTING APPROACH (current production):
+        # Generate AI summary using cybersecurity-specific summarizer
+        # This uses build_data_driven_cyber_prompt() with 10 rules:
+        #   RULE 1-6: Data grounding and trend validation
+        #   RULE 7: Eliminate redundancy
+        #   RULE 8: No generic filler phrases
+        #   RULE 9: Analyst notes must be labeled
+        #   RULE 10: Word limits per section (2,000 words total)
+        # Generates 9 sections including new "Decisions Required"
+        summary = summarize_cyber_program_with_ai(cyber_context, config, scenario)
+
+        # Write outputs
+        print("\n📝 Writing outputs...")
+        outputs = []
+
+        md_path = write_markdown_output(summary, config, scenario)
+        if md_path:
+            outputs.append(f"Markdown: {md_path}")
+
+        # Pass cyber_context as risk_context for HTML template access
+        # Template uses cyber_context["chart_paths"], cyber_context["cyber_ebitda_detailed"], etc.
+        html_path = write_html_output(summary, config, scenario, risk_context=None, ebitda_chart_path=None, cyber_context=cyber_context)
         if html_path:
             outputs.append(f"HTML: {html_path}")
 
